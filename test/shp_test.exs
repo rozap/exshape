@@ -41,18 +41,22 @@ defmodule ShpTest do
       %Polyline{
         parts: [0],
         points: [
-          %Point{x: 0, y: 0},
-          %Point{x: 5, y: 5},
-          %Point{x: 10, y: 10},
+          [
+            %Point{x: 0, y: 0},
+            %Point{x: 5, y: 5},
+            %Point{x: 10, y: 10}
+          ]
         ],
         bbox: %Bbox{xmin: 0, ymin: 0, xmax: 10, ymax: 10}
       },
       %Polyline{
         parts: [0],
         points: [
-          %Point{x: 15, y: 15},
-          %Point{x: 20, y: 20},
-          %Point{x: 25, y: 25}
+          [
+            %Point{x: 15, y: 15},
+            %Point{x: 20, y: 20},
+            %Point{x: 25, y: 25}
+          ]
         ],
         bbox: %Bbox{xmin: 15, ymin: 15, xmax: 25, ymax: 25}
       }

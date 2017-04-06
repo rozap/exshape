@@ -75,7 +75,10 @@ defmodule Exshape.Shp do
       components = [[p] | components]
       Map.put(s.item, key, components)
     else
-      [part | rest_parts] = components
+      {part, rest_parts} = case components do
+        [part | rest_parts] -> {part, rest_parts}
+        [] -> {[], []}
+      end
       components = [[p | part] | rest_parts]
       Map.put(s.item, key, components)
     end
@@ -90,7 +93,7 @@ defmodule Exshape.Shp do
     @unused,
     @unused,
     @unused,
-    file_len::big-integer-size(32),
+    _file_len::big-integer-size(32),
     @version,
     type_code::little-integer-size(32),
     xmin::little-float-size(64),
@@ -206,10 +209,13 @@ defmodule Exshape.Shp do
   end
 
   defp do_read(%State{mode: :polyline, to_read: 0} = s, rest) do
+    item = Map.put(s.item, :points, s.item.points
+    |> Enum.map(fn part -> Enum.reverse(part) end)
+    |> Enum.reverse)
+
     s
     |> mode(:record_header)
-    |> reverse_item(:points)
-    |> emit_item
+    |> emit(item)
     |> do_read(rest)
   end
 
@@ -219,7 +225,7 @@ defmodule Exshape.Shp do
     rest::binary
   >>) do
     s
-    |> prepend(%Point{x: x, y: y}, :points)
+    |> put_nested(%Point{x: x, y: y}, :points)
     |> consume_item
     |> do_read(rest)
   end
