@@ -1,6 +1,11 @@
 defmodule Exshape.Shp do
   defmodule State do
-    defstruct mode: :header, shape_type: nil, emit: [], to_read: nil, item: nil
+    defstruct mode: :header,
+      shape_type: nil,
+      emit: [],
+      to_read: nil,
+      item: nil,
+      part_index: 0
   end
 
   defmodule Bbox do
@@ -20,6 +25,10 @@ defmodule Exshape.Shp do
   end
 
   defmodule Polyline do
+    defstruct points: [], bbox: nil, parts: []
+  end
+
+  defmodule Polygon do
     defstruct points: [], bbox: nil, parts: []
   end
 
@@ -45,7 +54,7 @@ defmodule Exshape.Shp do
     def shape_type_from_code(unquote(code)), do: unquote(t)
   end)
 
-  defp emit(s, thing), do: %{s | emit: [thing | s.emit]}
+  defp emit(s, thing), do: %{s | emit: [thing | s.emit], item: nil}
   defp mode(s, m), do: %{s | mode: m}
   defp shape_type(s, st), do: %{s | shape_type: st}
   defp item(s, item), do: %{s | item: item}
@@ -58,6 +67,20 @@ defmodule Exshape.Shp do
   defp reverse_item(s, key) do
     item = Map.put(s.item, key, Enum.reverse(Map.get(s.item, key)))
     %{s | item: item}
+  end
+
+  defp put_nested(s, p, key) do
+    components = Map.get(s.item, key)
+    item = if s.part_index in s.item.parts do
+      components = [[p] | components]
+      Map.put(s.item, key, components)
+    else
+      [part | rest_parts] = components
+      components = [[p | part] | rest_parts]
+      Map.put(s.item, key, components)
+    end
+
+    %{s | item: item, part_index: s.part_index + 1}
   end
 
   defp do_read(%State{mode: :header} = s, <<
@@ -162,7 +185,6 @@ defmodule Exshape.Shp do
     |> do_read(rest)
   end
 
-
   ##
   # Polylines
   #
@@ -202,6 +224,47 @@ defmodule Exshape.Shp do
     |> do_read(rest)
   end
 
+  ##
+  # Polygons
+  #
+  defp do_read(%State{mode: {:record, _, _}, shape_type: :polygon} = s, <<
+    5::little-integer-size(32),
+    xmin::little-float-size(64),
+    ymin::little-float-size(64),
+    xmax::little-float-size(64),
+    ymax::little-float-size(64),
+    num_parts::little-integer-size(32),
+    num_points::little-integer-size(32),
+    rest::binary
+  >>) do
+    s
+    |> repeatedly(num_parts)
+    |> item(%Polygon{bbox: %Bbox{xmin: xmin, ymin: ymin, xmax: xmax, ymax: ymax}})
+    |> mode({:parts, {:polygon, num_points}})
+    |> do_read(rest)
+  end
+
+  defp do_read(%State{mode: :polygon, to_read: 0} = s, rest) do
+    item = Map.put(s.item, :points, s.item.points
+    |> Enum.map(fn part -> Enum.reverse(part) end)
+    |> Enum.reverse)
+
+    s
+    |> mode(:record_header)
+    |> emit(item)
+    |> do_read(rest)
+  end
+
+  defp do_read(%State{mode: :polygon, shape_type: :polygon} = s, <<
+    x::little-float-size(64),
+    y::little-float-size(64),
+    rest::binary
+  >>) do
+    s
+    |> put_nested(%Point{x: x, y: y}, :points)
+    |> consume_item
+    |> do_read(rest)
+  end
   ##
   # Parts
   #
