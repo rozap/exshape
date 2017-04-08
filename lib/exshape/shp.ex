@@ -5,7 +5,8 @@ defmodule Exshape.Shp do
       emit: [],
       to_read: nil,
       item: nil,
-      part_index: 0
+      part_index: 0,
+      measures: []
   end
 
   defmodule Bbox do
@@ -20,7 +21,15 @@ defmodule Exshape.Shp do
     defstruct [:x, :y]
   end
 
+  defmodule PointM do
+    defstruct [:x, :y, :m]
+  end
+
   defmodule Multipoint do
+    defstruct points: [], bbox: nil
+  end
+
+  defmodule MultipointM do
     defstruct points: [], bbox: nil
   end
 
@@ -85,6 +94,7 @@ defmodule Exshape.Shp do
 
     %{s | item: item, part_index: s.part_index + 1}
   end
+  defp put_measure(s, m), do: %{s | measures: [m | s.measures]}
 
   defp do_read(%State{mode: :header} = s, <<
     @file_code,
@@ -271,6 +281,95 @@ defmodule Exshape.Shp do
     |> consume_item
     |> do_read(rest)
   end
+
+  ##
+  # PointM
+  #
+  defp do_read(%State{mode: {:record, _, _}, shape_type: :pointm} = s, <<
+    21::little-integer-size(32),
+    x::little-float-size(64),
+    y::little-float-size(64),
+    m::little-float-size(64),
+    rest::binary
+  >>) do
+    s
+    |> emit(%PointM{x: x, y: y, m: m})
+    |> mode(:record_header)
+    |> do_read(rest)
+  end
+
+  ##
+  # MultipointM
+  #
+  defp do_read(%State{mode: {:record, _, _}, shape_type: :multipointm} = s, <<
+    28::little-integer-size(32),
+    xmin::little-float-size(64),
+    ymin::little-float-size(64),
+    xmax::little-float-size(64),
+    ymax::little-float-size(64),
+    num_points::little-integer-size(32),
+    rest::binary
+  >>) do
+    s
+    |> repeatedly(num_points)
+    |> item(%MultipointM{bbox: %Bbox{xmin: xmin, ymin: ymin, xmax: xmax, ymax: ymax}})
+    |> mode(:multipointm)
+    |> do_read(rest)
+  end
+
+  defp do_read(%State{mode: :multipointm_measures, to_read: 0} = s, rest) do
+    points = s.measures
+    |> Enum.reverse
+    |> Enum.zip(s.item.points)
+    |> Enum.map(fn {m, p} -> %{p | m: m} end)
+
+    item = %{s.item | points: points}
+
+    s
+    |> mode(:record_header)
+    |> emit(item)
+    |> do_read(rest)
+  end
+
+  defp do_read(%State{mode: :multipointm, to_read: 0} = s, <<
+    mmin::little-float-size(64),
+    mmax::little-float-size(64),
+    rest::binary
+  >>) do
+    num_points = length(s.item.points)
+    bbox = %{s.item.bbox | mmin: mmin, mmax: mmax}
+
+    s
+    |> mode(:multipointm_measures)
+    |> repeatedly(num_points)
+    |> item(%{s.item | bbox: bbox})
+    |> reverse_item(:points)
+    |> do_read(rest)
+  end
+
+  defp do_read(%State{mode: :multipointm_measures, shape_type: :multipointm} = s, <<
+    m::little-float-size(64),
+    rest::binary
+  >>) do
+    s
+    |> put_measure(m)
+    |> consume_item
+    |> do_read(rest)
+  end
+
+  defp do_read(%State{mode: :multipointm, shape_type: :multipointm} = s, <<
+    x::little-float-size(64),
+    y::little-float-size(64),
+    rest::binary
+  >>) do
+    s
+    |> prepend(%PointM{x: x, y: y}, :points)
+    |> consume_item
+    |> do_read(rest)
+  end
+
+
+
   ##
   # Parts
   #

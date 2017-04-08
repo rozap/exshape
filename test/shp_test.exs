@@ -2,7 +2,7 @@ defmodule ShpTest do
   use ExUnit.Case
   import TestHelper
   alias Exshape.Shp
-  alias Exshape.Shp.{Bbox, Point, Multipoint, Polyline, Polygon}
+  alias Exshape.Shp.{Bbox, Point, PointM, Multipoint, MultipointM, Polyline, Polygon}
   doctest Exshape
 
   test "can read points" do
@@ -89,4 +89,34 @@ defmodule ShpTest do
       bbox: %Bbox{xmin: 0, ymin: 0, xmax: 5, ymax: 5}
     }
   end
+
+  test "can read pointm" do
+    [_header | pointms] = fixture("pointm.shp")
+    |> Shp.read
+    |> Enum.into([])
+
+    assert pointms == [
+      %PointM{x: 10, y: 10, m: 100},
+      %PointM{x: 5, y: 5, m: 50},
+      %PointM{x: 0, y: 10, m: 75}
+    ]
+  end
+
+  test "can read multipointm" do
+    [header | multipointms] = fixture("multipointm.shp")
+    |> Shp.read
+    |> Enum.into([])
+
+    assert multipointms == [
+      %MultipointM{
+        points: [
+          %PointM{x: 10, y: 10, m: 100},
+          %PointM{x: 5, y: 5, m: 50},
+          %PointM{x: 0, y: 10, m: 75}
+        ],
+        bbox: %Bbox{xmin: 0, xmax: 10, ymin: 5, ymax: 10, mmax: 100, mmin: 50}
+      }
+    ]
+  end
+
 end
