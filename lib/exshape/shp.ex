@@ -37,6 +37,10 @@ defmodule Exshape.Shp do
     defstruct points: [], bbox: nil, parts: []
   end
 
+  defmodule PolylineM do
+    defstruct points: [], bbox: nil, parts: []
+  end
+
   defmodule Polygon do
     defstruct points: [], bbox: nil, parts: []
   end
@@ -63,6 +67,53 @@ defmodule Exshape.Shp do
     def shape_type_from_code(unquote(code)), do: unquote(t)
   end)
 
+  defp nest_parts(item) do
+    {parts, _} = Enum.reduce(item.points, {[], 0}, fn
+      point, {[], 0} -> {[[point]], 1}
+      point, {parts, i} ->
+        if i in item.parts do
+          {[[point] | parts], i + 1}
+        else
+          [part | rest_parts] = parts
+          {[[point | part] | rest_parts], i + 1}
+        end
+    end)
+
+    parts
+  end
+
+  defp zip_measures(p, s) do
+    points = p.points
+    |> Enum.zip(s.measures)
+    |> Enum.map(fn {pm, m} -> %{pm | m: m} end)
+
+    %{p | points: points}
+  end
+
+  defp emit(s, %Polygon{} = p) do
+    %{s | emit: [%{p | points: nest_parts(p)} | s.emit]}
+  end
+
+  defp emit(s, %Polyline{} = p) do
+    %{s | emit: [%{p | points: nest_parts(p)} | s.emit]}
+  end
+
+  defp emit(s, %Multipoint{} = mp) do
+    %{s | emit: [reverse(mp, :points) | s.emit]}
+  end
+
+  defp emit(s, %MultipointM{} = mp) do
+    mp = zip_measures(mp, s) |> reverse(:points)
+    %{s | emit: [mp | s.emit]}
+  end
+
+  defp emit(s, %PolylineM{} = p) do
+    p = zip_measures(p, s)
+    polylinem = %{p | points: nest_parts(p)}
+    %{s | emit: [polylinem | s.emit]}
+  end
+
+
   defp emit(s, thing), do: %{s | emit: [thing | s.emit], item: nil}
   defp mode(s, m), do: %{s | mode: m}
   defp shape_type(s, st), do: %{s | shape_type: st}
@@ -73,27 +124,10 @@ defmodule Exshape.Shp do
   end
   defp consume_item(s), do: %{s | to_read: s.to_read - 1}
   defp emit_item(s), do: %{emit(s, s.item) | item: nil}
-  defp reverse_item(s, key) do
-    item = Map.put(s.item, key, Enum.reverse(Map.get(s.item, key)))
-    %{s | item: item}
+  defp reverse(item, key) do
+    Map.put(item, key, Enum.reverse(Map.get(item, key)))
   end
 
-  defp put_nested(s, p, key) do
-    components = Map.get(s.item, key)
-    item = if s.part_index in s.item.parts do
-      components = [[p] | components]
-      Map.put(s.item, key, components)
-    else
-      {part, rest_parts} = case components do
-        [part | rest_parts] -> {part, rest_parts}
-        [] -> {[], []}
-      end
-      components = [[p | part] | rest_parts]
-      Map.put(s.item, key, components)
-    end
-
-    %{s | item: item, part_index: s.part_index + 1}
-  end
   defp put_measure(s, m), do: %{s | measures: [m | s.measures]}
 
   defp do_read(%State{mode: :header} = s, <<
@@ -182,7 +216,6 @@ defmodule Exshape.Shp do
   defp do_read(%State{mode: :multipoint, to_read: 0} = s, rest) do
     s
     |> mode(:record_header)
-    |> reverse_item(:points)
     |> emit_item
     |> do_read(rest)
   end
@@ -219,13 +252,9 @@ defmodule Exshape.Shp do
   end
 
   defp do_read(%State{mode: :polyline, to_read: 0} = s, rest) do
-    item = Map.put(s.item, :points, s.item.points
-    |> Enum.map(fn part -> Enum.reverse(part) end)
-    |> Enum.reverse)
-
     s
     |> mode(:record_header)
-    |> emit(item)
+    |> emit(s.item)
     |> do_read(rest)
   end
 
@@ -235,7 +264,7 @@ defmodule Exshape.Shp do
     rest::binary
   >>) do
     s
-    |> put_nested(%Point{x: x, y: y}, :points)
+    |> prepend(%Point{x: x, y: y}, :points)
     |> consume_item
     |> do_read(rest)
   end
@@ -261,13 +290,9 @@ defmodule Exshape.Shp do
   end
 
   defp do_read(%State{mode: :polygon, to_read: 0} = s, rest) do
-    item = Map.put(s.item, :points, s.item.points
-    |> Enum.map(fn part -> Enum.reverse(part) end)
-    |> Enum.reverse)
-
     s
     |> mode(:record_header)
-    |> emit(item)
+    |> emit(s.item)
     |> do_read(rest)
   end
 
@@ -277,7 +302,7 @@ defmodule Exshape.Shp do
     rest::binary
   >>) do
     s
-    |> put_nested(%Point{x: x, y: y}, :points)
+    |> prepend(%Point{x: x, y: y}, :points)
     |> consume_item
     |> do_read(rest)
   end
@@ -317,19 +342,7 @@ defmodule Exshape.Shp do
     |> do_read(rest)
   end
 
-  defp do_read(%State{mode: :multipointm_measures, to_read: 0} = s, rest) do
-    points = s.measures
-    |> Enum.reverse
-    |> Enum.zip(s.item.points)
-    |> Enum.map(fn {m, p} -> %{p | m: m} end)
 
-    item = %{s.item | points: points}
-
-    s
-    |> mode(:record_header)
-    |> emit(item)
-    |> do_read(rest)
-  end
 
   defp do_read(%State{mode: :multipointm, to_read: 0} = s, <<
     mmin::little-float-size(64),
@@ -340,20 +353,9 @@ defmodule Exshape.Shp do
     bbox = %{s.item.bbox | mmin: mmin, mmax: mmax}
 
     s
-    |> mode(:multipointm_measures)
+    |> mode(:measures)
     |> repeatedly(num_points)
     |> item(%{s.item | bbox: bbox})
-    |> reverse_item(:points)
-    |> do_read(rest)
-  end
-
-  defp do_read(%State{mode: :multipointm_measures, shape_type: :multipointm} = s, <<
-    m::little-float-size(64),
-    rest::binary
-  >>) do
-    s
-    |> put_measure(m)
-    |> consume_item
     |> do_read(rest)
   end
 
@@ -368,14 +370,58 @@ defmodule Exshape.Shp do
     |> do_read(rest)
   end
 
+  ##
+  # PolylineM
+  defp do_read(%State{mode: {:record, _, _}, shape_type: :polylinem} = s, <<
+    _::little-integer-size(32),
+    xmin::little-float-size(64),
+    ymin::little-float-size(64),
+    xmax::little-float-size(64),
+    ymax::little-float-size(64),
+    num_parts::little-integer-size(32),
+    num_points::little-integer-size(32),
+    rest::binary
+  >>) do
 
+    s
+    |> repeatedly(num_parts)
+    |> item(%PolylineM{bbox: %Bbox{xmin: xmin, ymin: ymin, xmax: xmax, ymax: ymax}})
+    |> mode({:parts, {:polylinem, num_points}})
+    |> do_read(rest)
+  end
+
+  defp do_read(%State{mode: :polylinem, to_read: 0} = s, <<
+    mmin::little-float-size(64),
+    mmax::little-float-size(64),
+    rest::binary
+  >>) do
+    num_points = length(s.item.points)
+    item = %{s.item | bbox: %{s.item.bbox | mmin: mmin, mmax: mmax}}
+
+    s
+    |> mode(:measures)
+    |> item(item)
+    |> repeatedly(num_points)
+    |> do_read(rest)
+  end
+
+  defp do_read(%State{mode: :polylinem, shape_type: :polylinem} = s, <<
+    x::little-float-size(64),
+    y::little-float-size(64),
+    rest::binary
+  >>) do
+    s
+    |> prepend(%PointM{x: x, y: y}, :points)
+    |> consume_item
+    |> do_read(rest)
+  end
 
   ##
   # Parts
   #
   defp do_read(%State{mode: {:parts, {next_mode, to_read}}, to_read: 0} = s, rest) do
     s
-    |> reverse_item(:parts)
+    |> item(reverse(s.item, :parts))
     |> mode(next_mode)
     |> repeatedly(to_read)
     |> do_read(rest)
@@ -390,8 +436,26 @@ defmodule Exshape.Shp do
     |> do_read(rest)
   end
 
+  ##
+  # Measures
+  #
+  defp do_read(%State{mode: :measures, to_read: 0} = s, rest) do
 
+    s
+    |> mode(:record_header)
+    |> emit(s.item)
+    |> do_read(rest)
+  end
 
+  defp do_read(%State{mode: :measures} = s, <<
+    m::little-float-size(64),
+    rest::binary
+  >>) do
+    s
+    |> put_measure(m)
+    |> consume_item
+    |> do_read(rest)
+  end
   defp do_read(%State{} = s, <<rest::binary>>), do: {rest, s}
 
   def read(byte_stream) do

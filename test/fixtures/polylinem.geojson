@@ -1,0 +1,7 @@
+{
+"type": "FeatureCollection",
+"features": [
+{ "type": "Feature", "properties": { "polylin_ID": null }, "geometry": { "type": "LineString", "coordinates": [ [ 0.0, 0.0 ], [ 5.0, 5.0 ], [ 10.0, 10.0 ] ] } },
+{ "type": "Feature", "properties": { "polylin_ID": null }, "geometry": { "type": "LineString", "coordinates": [ [ 15.0, 15.0 ], [ 20.0, 20.0 ], [ 25.0, 25.0 ] ] } }
+]
+}
