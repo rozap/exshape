@@ -6,7 +6,7 @@ defmodule ShpTest do
     Point, PointM,
     Multipoint, MultipointM,
     Polyline, PolylineM,
-    Polygon
+    Polygon, PolygonM
   }
   doctest Exshape
 
@@ -151,6 +151,28 @@ defmodule ShpTest do
         ],
         parts: [0],
         bbox: %Bbox{xmin: 15, xmax: 25, ymin: 15, ymax: 25, mmin: 15, mmax: 25}
+      }
+    ]
+  end
+
+  test "can read polygonm" do
+    [_header | polygonms] = fixture("polygonm.shp")
+    |> Shp.read
+    |> Enum.into([])
+
+    assert polygonms == [
+      %PolygonM{
+        points: [
+          [
+            %PointM{x: 0, y: 0, m: 0},
+            %PointM{x: 0, y: 5, m: 5},
+            %PointM{x: 5, y: 5, m: 10},
+            %PointM{x: 5, y: 0, m: 15},
+            %PointM{x: 0, y: 0, m: 0}
+          ]
+        ],
+        parts: [0],
+        bbox: %Bbox{xmin: 0, xmax: 5, ymin: 0, ymax: 5, mmin: 0, mmax: 15}
       }
     ]
   end

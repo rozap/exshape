@@ -41,6 +41,11 @@ defmodule Exshape.Shp do
     defstruct points: [], bbox: nil, parts: []
   end
 
+  defmodule PolygonM do
+    defstruct points: [], bbox: nil, parts: []
+  end
+
+
   defmodule Polygon do
     defstruct points: [], bbox: nil, parts: []
   end
@@ -107,11 +112,14 @@ defmodule Exshape.Shp do
     %{s | emit: [mp | s.emit]}
   end
 
-  defp emit(s, %PolylineM{} = p) do
+
+  defp emit_polym(s, p) do
     p = zip_measures(p, s)
     polylinem = %{p | points: nest_parts(p)}
     %{s | emit: [polylinem | s.emit]}
   end
+  defp emit(s, %PolylineM{} = pm), do: emit_polym(s, pm)
+  defp emit(s, %PolygonM{} = pm),  do: emit_polym(s, pm)
 
 
   defp emit(s, thing), do: %{s | emit: [thing | s.emit], item: nil}
@@ -371,8 +379,14 @@ defmodule Exshape.Shp do
   end
 
   ##
-  # PolylineM
-  defp do_read(%State{mode: {:record, _, _}, shape_type: :polylinem} = s, <<
+  # PolylineM and PolygonM are the same
+  @poly_m [:polylinem, :polygonm]
+  @poly_m_t %{
+    polylinem: PolylineM,
+    polygonm: PolygonM
+  }
+
+  defp do_read(%State{mode: {:record, _, _}, shape_type: st} = s, <<
     _::little-integer-size(32),
     xmin::little-float-size(64),
     ymin::little-float-size(64),
@@ -381,20 +395,28 @@ defmodule Exshape.Shp do
     num_parts::little-integer-size(32),
     num_points::little-integer-size(32),
     rest::binary
-  >>) do
+  >>) when st in @poly_m do
+
+    t = Map.get(@poly_m_t, st)
+    item = struct(t, %{bbox: %Bbox{
+      xmin: xmin,
+      ymin: ymin,
+      xmax: xmax,
+      ymax: ymax
+    }})
 
     s
     |> repeatedly(num_parts)
-    |> item(%PolylineM{bbox: %Bbox{xmin: xmin, ymin: ymin, xmax: xmax, ymax: ymax}})
-    |> mode({:parts, {:polylinem, num_points}})
+    |> item(item)
+    |> mode({:parts, {st, num_points}})
     |> do_read(rest)
   end
 
-  defp do_read(%State{mode: :polylinem, to_read: 0} = s, <<
+  defp do_read(%State{mode: mode, to_read: 0} = s, <<
     mmin::little-float-size(64),
     mmax::little-float-size(64),
     rest::binary
-  >>) do
+  >>) when mode in @poly_m do
     num_points = length(s.item.points)
     item = %{s.item | bbox: %{s.item.bbox | mmin: mmin, mmax: mmax}}
 
@@ -405,11 +427,11 @@ defmodule Exshape.Shp do
     |> do_read(rest)
   end
 
-  defp do_read(%State{mode: :polylinem, shape_type: :polylinem} = s, <<
+  defp do_read(%State{mode: st, shape_type: st} = s, <<
     x::little-float-size(64),
     y::little-float-size(64),
     rest::binary
-  >>) do
+  >>) when st in @poly_m  do
     s
     |> prepend(%PointM{x: x, y: y}, :points)
     |> consume_item
