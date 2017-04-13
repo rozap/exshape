@@ -112,17 +112,18 @@ defmodule Exshape.Shp do
     %{s | emit: [mp | s.emit]}
   end
 
+  defp emit(s, %PolylineM{} = pm), do: emit_polym(s, pm)
+  defp emit(s, %PolygonM{} = pm),  do: emit_polym(s, pm)
+
+  defp emit(s, thing), do: %{s | emit: [thing | s.emit], item: nil}
 
   defp emit_polym(s, p) do
     p = zip_measures(p, s)
     polylinem = %{p | points: nest_parts(p)}
     %{s | emit: [polylinem | s.emit]}
   end
-  defp emit(s, %PolylineM{} = pm), do: emit_polym(s, pm)
-  defp emit(s, %PolygonM{} = pm),  do: emit_polym(s, pm)
 
 
-  defp emit(s, thing), do: %{s | emit: [thing | s.emit], item: nil}
   defp mode(s, m), do: %{s | mode: m}
   defp shape_type(s, st), do: %{s | shape_type: st}
   defp item(s, item), do: %{s | item: item}
