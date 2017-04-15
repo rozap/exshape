@@ -28,6 +28,8 @@ defmodule Exshape.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    []
+    [
+      {:uuid, "~> 1.1"}
+    ]
   end
 end

@@ -42,10 +42,20 @@ defmodule Exshape.Dbf do
   >>) do
     Date.from_erl({String.to_integer(year), String.to_integer(month), String.to_integer(day)})
   end
-  defp munge(:float, datum), do: datum |> String.trim |> String.to_float
+  defp munge(:float, datum) do
+    case String.trim(datum) do
+      "" -> nil
+      t  -> String.to_float(t)
+    end
+ end
   defp munge(:boolean, "T"), do: true
   defp munge(:boolean, "F"), do: false
-  defp munge(:numeric, datum), do: datum |> String.trim |> String.to_integer
+  defp munge(:numeric, datum) do
+    case String.trim(datum) do
+      "" -> nil
+      t  -> String.to_integer(t)
+    end
+  end
   defp munge(:memo, d), do: d
 
   @types [
