@@ -1,5 +1,6 @@
 # Exshape
 Parse ESRI Shapefiles
+[![Build Status](https://travis-ci.org/rozap/exshape.svg?branch=master)](https://travis-ci.org/rozap/exshape)
 
 
 
