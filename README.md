@@ -11,3 +11,19 @@ Parse ESRI Shapefiles
 Stream.each(river_shapes, &IO.inspect/1) |> Stream.run
 Stream.each(lake_shapes, &IO.inspect/1) |> Stream.run
 ```
+
+## Shapes from a SHP byte stream
+```elixir
+File.stream!("rivers.shp", [], 2048)
+|> Exshape.Shp.read
+|> Stream.each(&IO.inspect/1)
+|> Stream.run
+```
+
+## Attributes from a DBF byte stream
+```elixir
+File.stream!("rivers.dbf", [], 2048)
+|> Exshape.Dbf.read
+|> Stream.each(&IO.inspect/1)
+|> Stream.run
+```
