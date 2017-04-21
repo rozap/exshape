@@ -188,6 +188,17 @@ defmodule Exshape.Shp do
     |> do_read(rest)
   end
 
+  defp do_read(%State{mode: {:record, _, _}, shape_type: _} = s, <<
+    0::little-integer-size(32),
+    rest::binary
+  >>) do
+    s
+    |> emit(nil)
+    |> mode(:record_header)
+    |> do_read(rest)
+  end
+
+
   ##
   # Point
   #
@@ -479,7 +490,9 @@ defmodule Exshape.Shp do
     |> consume_item
     |> do_read(rest)
   end
-  defp do_read(%State{} = s, <<rest::binary>>), do: {rest, s}
+  defp do_read(%State{} = s, <<rest::binary>>) do
+    {rest, s}
+  end
 
   def read(byte_stream) do
     Stream.transform(byte_stream, {<<>>, %State{}}, fn bin, {buf, state} ->

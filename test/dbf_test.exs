@@ -28,9 +28,9 @@ defmodule DbfTest do
     |> Enum.into([])
 
     assert records == [
-      ["some chars", true, 4, 8.8, {:ok, ~D[1980-10-11]}],
-      ["more chars", false, 1, 2.2, {:ok, ~D[1980-12-11]}],
-      ["more characters", false, 1, 2.2, {:ok, ~D[1980-12-11]}]
+      ["some chars", true, 4, 8.8, ~D[1980-10-11]],
+      ["more chars", false, 1, 2.2, ~D[1980-12-11]],
+      ["more characters", false, 1, 2.2, ~D[1980-12-11]]
     ]
   end
 

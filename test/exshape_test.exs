@@ -38,7 +38,22 @@ defmodule ExshapeTest do
       %Exshape.Shp.Point{x: 5.0, y: 5.0},
       %Exshape.Shp.Point{x: 0.0, y: 10.0}
     ]
+  end
 
+  # defp system_time do
+  #   {mega, seconds, ms} = :os.timestamp()
+  #   (mega*1000000 + seconds)*1000 + :erlang.round(ms/1000)
+  # end
 
+  @moduletag timeout: 60_000 * 5
+  test "can read a thing" do
+    # :fprof.trace([:start, {:procs, self}])
+    [{_layer_name, {_prj, stream}}] = Exshape.from_zip(
+      "#{__DIR__}/fixtures/co-parcels.zip"
+    )
+
+    # start = system_time()
+    assert Enum.reduce(stream, 0, fn _, acc -> acc + 1 end) == 7743
+    # IO.inspect {:elapsed, (system_time() - start), :ms}
   end
 end

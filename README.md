@@ -1,19 +1,13 @@
 # Exshape
+Parse ESRI Shapefiles
 
-**TODO: Add description**
-
-## Installation
-
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `exshape` to your list of dependencies in `mix.exs`:
-
+## From a zip archive
 ```elixir
-def deps do
-  [{:exshape, "~> 0.1.0"}]
-end
+[
+  {"rivers", {prj, river_shapes}},
+  {"lakes", {prj, lake_shapes}}
+] = Exshape.from_zip("path/to/archive.zip")
+
+Stream.each(river_shapes, &IO.inspect/1) |> Stream.run
+Stream.each(lake_shapes, &IO.inspect/1) |> Stream.run
 ```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/exshape](https://hexdocs.pm/exshape).
-

@@ -15,13 +15,9 @@ defmodule Exshape.Dbf do
   defmodule State do
     defstruct mode: :header,
       emit: [],
-      to_read: nil,
       item: [],
-      part_index: 0,
-      measures: [],
       header: %Header{}
   end
-
 
   defp mode(s, m), do: %{s | mode: m}
   defp header(s, u), do: %{s | header: struct(s.header, u)}
@@ -29,31 +25,51 @@ defmodule Exshape.Dbf do
   defp emit(s, thing), do: %{s | emit: [munge_row(s.header.columns, thing) | s.emit], item: []}
   defp add_column(s, c), do: %{s | header: %{s.header | columns: [c | s.header.columns]}}
 
+  @lead ~r/^(\s+)/
+  @trail ~r/(\s+)$/
+  defp trim_leading(s), do: Regex.replace(@lead, s, "")
+  defp trim_trailing(s), do: Regex.replace(@trail, s, "")
+
+
   defp munge_row(columns, row) do
     Enum.zip(columns, row)
     |> Enum.map(fn {c, datum} -> munge(c.field_type, datum) end)
   end
 
-  defp munge(:character, datum), do: String.trim(datum)
+  defp munge(:character, datum), do: trim_trailing(datum)
   defp munge(:date, <<
     year::binary-size(4),
     month::binary-size(2),
     day::binary-size(2)
   >>) do
-    Date.from_erl({String.to_integer(year), String.to_integer(month), String.to_integer(day)})
+    y = String.to_integer(year)
+    m = String.to_integer(month)
+    d = String.to_integer(day)
+    case Date.from_erl({y, m, d}) do
+      {:error, :invalid_date} -> {y, m, d}
+      {:ok, d} -> d
+    end
   end
   defp munge(:float, datum) do
-    case String.trim(datum) do
+    case trim_leading(datum) do
       "" -> nil
-      t  -> String.to_float(t)
+      t  ->
+        case Float.parse(t) do
+          {f, _} -> f
+          :error -> nil
+        end
     end
  end
   defp munge(:boolean, "T"), do: true
   defp munge(:boolean, "F"), do: false
   defp munge(:numeric, datum) do
-    case String.trim(datum) do
+    case trim_leading(datum) do
       "" -> nil
-      t  -> String.to_integer(t)
+      t  ->
+        case Integer.parse(t) do
+          {i, _} -> i
+          :error -> nil
+        end
     end
   end
   defp munge(:memo, d), do: d
@@ -162,12 +178,13 @@ defmodule Exshape.Dbf do
     |> do_read(rest)
   end
 
-  defp do_read(%State{mode: :pre_row} = s, <<
-    26::little-integer-size(8),
-    _
-  >>) do
-    mode(s, :done)
-  end
+  # defp do_read(%State{mode: :pre_row} = s, <<
+  #   26::little-integer-size(8),
+  #   _
+  # >>) do
+  #   mode(s, :done)
+  #   |> IO.inspect
+  # end
 
   defp do_read(%State{mode: {:row, len, _}} = s, bin) do
     case bin do
@@ -177,7 +194,7 @@ defmodule Exshape.Dbf do
         |> next_column()
         |> do_read(rest)
       _ ->
-        do_read(s, bin)
+        {bin, s}
     end
   end
 
@@ -186,8 +203,10 @@ defmodule Exshape.Dbf do
   def read(byte_stream) do
     Stream.transform(byte_stream, {<<>>, %State{}}, fn bin, {buf, state} ->
       case do_read(state, buf <> bin) do
-        {_,   %State{mode: :done}} = s -> {:halt, s}
-        {buf, %State{emit: emit} = s}-> {Enum.reverse(emit), {buf, %{s | emit: []}}}
+        {_, %State{mode: :done}} = s ->
+          {:halt, s}
+        {buf, %State{emit: emit} = s} ->
+          {Enum.reverse(emit), {buf, %{s | emit: []}}}
       end
     end)
   end

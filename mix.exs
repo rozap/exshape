@@ -5,9 +5,25 @@ defmodule Exshape.Mixfile do
     [app: :exshape,
      version: "0.1.0",
      elixir: "~> 1.4",
+     description: description(),
+     package: package(),
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      deps: deps()]
+  end
+
+  defp description do
+    """
+      Read ESRI Shapefiles as a stream of features and their attributes
+    """
+  end
+
+  defp package do
+    [
+      maintainers: ["Chris Duranti"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/rozap/exshape"}
+    ]
   end
 
   # Configuration for the OTP application
@@ -29,7 +45,9 @@ defmodule Exshape.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [
-      {:uuid, "~> 1.1"}
+      {:uuid, "~> 1.1"},
+      {:ex_doc, ">= 0.0.0", only: :dev},
+      {:poison, "~> 3.1", only: :test}
     ]
   end
 end

@@ -1,33 +1,49 @@
 defmodule Exshape do
   @moduledoc """
+    This module just contains a helper function for working wtih zip
+    archives. If you have a stream of bytes that you want to parse
+    directly, use the Shp or Dbf modules to parse.
   """
   alias Exshape.{Dbf, Shp}
 
-  defp open_shp(c), do: File.stream!(c) |> Shp.read
-  defp open_dbf(c), do: File.stream!(c) |> Dbf.read
+  defp open_shp(c, size), do: File.stream!(c, [], size) |> Shp.read
+  defp open_dbf(c, size), do: File.stream!(c, [], size) |> Dbf.read
 
-  defp zip(nil, nil), do: []
-  defp zip(nil, d), do: open_dbf(d)
-  defp zip(s, nil), do: open_shp(s)
-  defp zip(s, d), do: Stream.zip(open_shp(s), open_dbf(d))
+  defp zip(nil, nil, _), do: []
+  defp zip(nil, d, size), do: open_dbf(d, size)
+  defp zip(s, nil, size), do: open_shp(s, size)
+  defp zip(s, d, size), do: Stream.zip(open_shp(s, size), open_dbf(d, size))
 
   defp projection(nil), do: nil
   defp projection(prj), do: File.read!(prj)
 
-  def from_zip(path) do
-    cwd = '/tmp/#{UUID.uuid4}'
+  @doc """
+    Given a zip file path, unzip it and open streams for the underlying
+    shape data.
+
+    Returns a list of all the layers, where each layer is a tuple of
+    projection and the stream of features
+  """
+  @type projection :: String.t
+  @type layer_name :: String.t
+  @type layer :: {layer_name, {projection, Stream.t}}
+  @spec from_zip(String.t) :: [layer]
+  def from_zip(path, opts \\ []) do
+
+    cwd = Keyword.get(opts, :working_dir, '/tmp/exshape_#{UUID.uuid4}')
+    size = Keyword.get(opts, :read_size, 1024 * 512)
     File.mkdir_p!(cwd)
     with {:ok, files} <- :zip.extract(to_charlist(path), cwd: cwd) do
       files
       |> Enum.group_by(&Path.rootname/1)
       |> Enum.map(fn {root, components} ->
+        prj = projection(Enum.find(components, fn c -> Path.extname(c) == ".prj" end))
 
         stream = zip(
           Enum.find(components, fn c -> Path.extname(c) == ".shp" end),
-          Enum.find(components, fn c -> Path.extname(c) == ".dbf" end)
+          Enum.find(components, fn c -> Path.extname(c) == ".dbf" end),
+          size
         )
-
-        prj = projection(Enum.find(components, fn c -> Path.extname(c) == ".prj" end))
 
         {Path.basename(root), {prj, stream}}
       end)
