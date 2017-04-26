@@ -21,12 +21,16 @@ defmodule Exshape do
     Given a zip file path, unzip it and open streams for the underlying
     shape data.
 
-    Returns a list of all the layers, where each layer is a tuple of
-    projection and the stream of features
+    Returns a list of all the layers, where each layer is a tuple of layer name,
+    projection, and the stream of features
+
+    ```
+    [{layer_name, projection, feature_stream}] = Exshape.from_zip("single_layer.zip")
+    ```
   """
   @type projection :: String.t
   @type layer_name :: String.t
-  @type layer :: {layer_name, {projection, Stream.t}}
+  @type layer :: {layer_name, projection, Stream.t}
   @spec from_zip(String.t) :: [layer]
   def from_zip(path, opts \\ []) do
 
