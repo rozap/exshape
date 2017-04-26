@@ -11,11 +11,11 @@ defmodule DbfTest do
 
     assert header == %Header{
       columns: [
-        %Column{field_length: 8, field_type: :date, name: "A_DATE"},
-        %Column{field_length: 8, field_type: :float, name: "A_FLOAT"},
-        %Column{field_length: 18, field_type: :numeric, name: "A_NUMBER"},
-        %Column{field_length: 1, field_type: :boolean, name: "A_BOOL"},
         %Column{field_length: 15, field_type: :character, name: "A_CHAR"}],
+        %Column{field_length: 1, field_type: :boolean, name: "A_BOOL"},
+        %Column{field_length: 18, field_type: :numeric, name: "A_NUMBER"},
+        %Column{field_length: 8, field_type: :float, name: "A_FLOAT"},
+        %Column{field_length: 8, field_type: :date, name: "A_DATE"},
       header_byte_count: 193, last_updated: {2015, 9, 7},
       record_byte_count: 51,
       record_count: 3

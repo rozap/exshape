@@ -96,7 +96,7 @@ defmodule Exshape.Dbf do
       [] -> s
       _ ->
         s
-        |> emit(Enum.reverse(s.item))
+        |> emit(s.item)
         |> mode(:pre_row)
     end
   end
