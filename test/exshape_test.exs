@@ -3,7 +3,7 @@ defmodule ExshapeTest do
   doctest Exshape
 
   test "can read from zip" do
-    [{"point", {_prj, stream}}] = Exshape.from_zip(
+    [{"point", _prj, stream}] = Exshape.from_zip(
       "#{__DIR__}/fixtures/archive.zip"
     )
 
@@ -48,7 +48,7 @@ defmodule ExshapeTest do
   @moduletag timeout: 60_000 * 5
   test "can read a thing" do
     # :fprof.trace([:start, {:procs, self}])
-    [{_layer_name, {_prj, stream}}] = Exshape.from_zip(
+    [{_layer_name, _prj, stream}] = Exshape.from_zip(
       "#{__DIR__}/fixtures/co-parcels.zip"
     )
 

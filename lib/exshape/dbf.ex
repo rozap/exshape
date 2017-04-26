@@ -200,6 +200,19 @@ defmodule Exshape.Dbf do
 
   defp do_read(%State{} = s, <<rest::binary>>), do: {rest, s}
 
+  @doc """
+    Read a DBF from a byte stream
+
+    Example
+
+    ```
+    File.stream!("rivers.dbf", [], 2048)
+    |> Exshape.Dbf.read
+    |> Stream.each(&IO.inspect/1)
+    |> Stream.run
+    ```
+
+  """
   def read(byte_stream) do
     Stream.transform(byte_stream, {<<>>, %State{}}, fn bin, {buf, state} ->
       case do_read(state, buf <> bin) do

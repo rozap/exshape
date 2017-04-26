@@ -494,6 +494,16 @@ defmodule Exshape.Shp do
     {rest, s}
   end
 
+  @doc """
+    Read geometry features from a byte stream
+
+    ```
+      File.stream!("rivers.shp", [], 2048)
+      |> Exshape.Shp.read
+      |> Stream.each(&IO.inspect/1)
+      |> Stream.run
+    ```
+  """
   def read(byte_stream) do
     Stream.transform(byte_stream, {<<>>, %State{}}, fn bin, {buf, state} ->
       case do_read(state, buf <> bin) do

@@ -36,16 +36,17 @@ defmodule Exshape do
     with {:ok, files} <- :zip.extract(to_charlist(path), cwd: cwd) do
       files
       |> Enum.group_by(&Path.rootname/1)
-      |> Enum.map(fn {root, components} ->
+      |> Enum.flat_map(fn {root, components} ->
         prj = projection(Enum.find(components, fn c -> Path.extname(c) == ".prj" end))
+        shp = Enum.find(components, fn c -> Path.extname(c) == ".shp" end)
+        dbf = Enum.find(components, fn c -> Path.extname(c) == ".dbf" end)
 
-        stream = zip(
-          Enum.find(components, fn c -> Path.extname(c) == ".shp" end),
-          Enum.find(components, fn c -> Path.extname(c) == ".dbf" end),
-          size
-        )
-
-        {Path.basename(root), {prj, stream}}
+        if !is_nil(shp) && !is_nil(dbf) do
+          stream = zip(shp, dbf, size)
+          [{Path.basename(root), prj, stream}]
+        else
+          []
+        end
       end)
     end
   end
