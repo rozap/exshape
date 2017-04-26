@@ -21,7 +21,7 @@ defmodule Exshape.Dbf do
 
   defp mode(s, m), do: %{s | mode: m}
   defp header(s, u), do: %{s | header: struct(s.header, u)}
-  defp emit(s, %Header{} = header), do: %{s | emit: [header | s.emit], item: []}
+  defp emit(s, %Header{} = header), do: %{s | emit: [%{header | columns: Enum.reverse(header.columns)} | s.emit], item: []}
   defp emit(s, thing), do: %{s | emit: [munge_row(s.header.columns, thing) | s.emit], item: []}
   defp add_column(s, c), do: %{s | header: %{s.header | columns: [c | s.header.columns]}}
 
@@ -96,7 +96,7 @@ defmodule Exshape.Dbf do
       [] -> s
       _ ->
         s
-        |> emit(s.item)
+        |> emit(Enum.reverse(s.item))
         |> mode(:pre_row)
     end
   end
