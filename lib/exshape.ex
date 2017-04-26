@@ -24,6 +24,13 @@ defmodule Exshape do
     Returns a list of all the layers, where each layer is a tuple of layer name,
     projection, and the stream of features
 
+    By default this unzips to `/tmp/exshape_#{some_uuid}`. Make sure
+    to clean up when you're done consuming the stream. Pass the `:working_dir`
+    option to change this destination.
+
+    By default this reads in 1024 * 512 byte chunks. Pass the `:read_size`
+    option to change this.
+
     ```
     [{layer_name, projection, feature_stream}] = Exshape.from_zip("single_layer.zip")
     ```
