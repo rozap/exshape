@@ -16,8 +16,8 @@ to `mix.exs` deps
 ### From a zip archive
 ```elixir
 [
-  {"rivers", {prj, river_shapes}},
-  {"lakes", {prj, lake_shapes}}
+  {"rivers", rivers_proj, river_shapes},
+  {"lakes", lakes_proj, lake_shapes}
 ] = Exshape.from_zip("path/to/archive.zip")
 
 Stream.each(river_shapes, &IO.inspect/1) |> Stream.run
