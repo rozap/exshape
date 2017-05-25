@@ -4,7 +4,7 @@ defmodule Exshape.Mixfile do
   def project do
     [app: :exshape,
      version: "0.2.4",
-     elixir: "~> 1.4",
+     elixir: "~> 1.3",
      description: description(),
      package: package(),
      build_embedded: Mix.env == :prod,
