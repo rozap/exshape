@@ -73,18 +73,22 @@ defmodule Exshape.Shp do
   end)
 
   defp nest_parts(item) do
-    {parts, _} = Enum.reduce(item.points, {[], 0}, fn
+    {parts, _} = item.points
+    |> Enum.reverse
+    |> Enum.reduce({[], 0}, fn
       point, {[], 0} -> {[[point]], 1}
-      point, {parts, i} ->
+      point, {nested, i} ->
         if i in item.parts do
-          {[[point] | parts], i + 1}
+          {[[point] | nested], i + 1}
         else
-          [part | rest_parts] = parts
-          {[[point | part] | rest_parts], i + 1}
+          [nest | rest_nested] = nested
+          {[[point | nest] | rest_nested], i + 1}
         end
     end)
 
     parts
+    |> Enum.map(&Enum.reverse/1)
+    |> Enum.reverse
   end
 
   defp zip_measures(p, s) do

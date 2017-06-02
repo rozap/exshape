@@ -40,10 +40,7 @@ defmodule ExshapeTest do
     ]
   end
 
-  # defp system_time do
-  #   {mega, seconds, ms} = :os.timestamp()
-  #   (mega*1000000 + seconds)*1000 + :erlang.round(ms/1000)
-  # end
+  # These are just smoke tests
 
   @moduletag timeout: 60_000 * 5
   test "can read a thing" do
@@ -52,8 +49,39 @@ defmodule ExshapeTest do
       "#{__DIR__}/fixtures/co-parcels.zip"
     )
 
-    # start = system_time()
     assert Enum.reduce(stream, 0, fn _, acc -> acc + 1 end) == 7743
-    # IO.inspect {:elapsed, (system_time() - start), :ms}
+  end
+
+  test "zillow validity" do
+    [{_layer_name, _prj, stream}] = Exshape.from_zip(
+      "#{__DIR__}/fixtures/zillow.zip"
+    )
+
+    stream
+    |> Stream.drop(1)
+    |> Stream.each(fn {%Exshape.Shp.Polygon{points: points}, _attrs} ->
+      Enum.each(points, fn part ->
+        assert List.first(part) == List.last(part)
+      end)
+    end)
+    |> Stream.run
+  end
+
+  test "howard beach" do
+    [{_layer_name, _prj, stream}] = Exshape.from_zip(
+      "#{__DIR__}/fixtures/howard-beach.zip"
+    )
+
+    [{%Exshape.Shp.Polygon{points: [_, ring]}, _attrs}] = stream
+    |> Stream.drop(1)
+    |> Enum.into([])
+
+    assert ring == [
+      %Exshape.Shp.Point{x: -73.85161361099966, y: 40.64986601600033},
+      %Exshape.Shp.Point{x: -73.85169718399973, y: 40.64982533900025},
+      %Exshape.Shp.Point{x: -73.85164616599978, y: 40.649837659000205},
+      %Exshape.Shp.Point{x: -73.85162201099982, y: 40.649846004000274},
+      %Exshape.Shp.Point{x: -73.85161361099966, y: 40.64986601600033}
+    ]
   end
 end
