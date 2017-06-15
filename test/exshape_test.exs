@@ -1,6 +1,7 @@
 defmodule ExshapeTest do
   use ExUnit.Case
   doctest Exshape
+  import TestHelper
 
   test "can read from zip" do
     [{"point", _prj, stream}] = Exshape.from_zip(
@@ -83,5 +84,12 @@ defmodule ExshapeTest do
       %Exshape.Shp.Point{x: -73.85162201099982, y: 40.649846004000274},
       %Exshape.Shp.Point{x: -73.85161361099966, y: 40.64986601600033}
     ]
+  end
+
+  test "hoods" do
+    assert fixture("Neighborhoods/neighborhoods_orleans.shp")
+    |> Exshape.Shp.read
+    |> Enum.into([])
+    |> length == 75
   end
 end

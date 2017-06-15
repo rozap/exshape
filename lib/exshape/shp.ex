@@ -55,21 +55,22 @@ defmodule Exshape.Shp do
   @unused <<0::big-integer-size(32)>>
   @version <<1000::little-integer-size(32)>>
 
-  Enum.each([{0,  nil},
-  {1, :point},
-  {3, :polyline},
-  {5, :polygon},
-  {8, :multipoint},
-  {11, :pointz},
-  {13, :polylinez},
-  {15, :polygonz},
-  {18, :multipointz},
-  {21, :pointm},
-  {23, :polylinem},
-  {25, :polygonm},
-  {28, :multipointm},
-  {31, :multipatchm}], fn {code, t} ->
+  Enum.each([{0, nil, nil},
+  {1, :point, Point},
+  {3, :polyline, Polyline},
+  {5, :polygon, Polygon},
+  {8, :multipoint, Multipoint},
+  {11, :pointz, nil}, #Not implemented
+  {13, :polylinez, nil},
+  {15, :polygonz, nil},
+  {18, :multipointz, nil},
+  {21, :pointm, PointM},
+  {23, :polylinem, PolylineM},
+  {25, :polygonm, PolygonM},
+  {28, :multipointm, MultipointM},
+  {31, :multipatchm, nil}], fn {code, t, s} ->
     def shape_type_from_code(unquote(code)), do: unquote(t)
+    def shape_type_to_struct(unquote(t)), do: struct!(unquote(s))
   end)
 
   defp nest_parts(item) do
@@ -142,6 +143,25 @@ defmodule Exshape.Shp do
   end
 
   defp put_measure(s, m), do: %{s | measures: [m | s.measures]}
+
+
+  defp extract_bbox(<<
+    xmin::little-float-size(64),
+    ymin::little-float-size(64),
+    xmax::little-float-size(64),
+    ymax::little-float-size(64)
+  >>) do
+    %Bbox{xmin: xmin, ymin: ymin, xmax: xmax, ymax: ymax}
+  end
+  defp extract_bbox(_), do: %Bbox{}
+
+  defp update_bbox_measures(bbox, <<
+    mmin::little-float-size(64),
+    mmax::little-float-size(64),
+  >>) do
+    %{bbox | mmin: mmin, mmax: mmax}
+  end
+  defp update_bbox_measures(bbox, _), do: bbox
 
   defp do_read(%State{mode: :header} = s, <<
     @file_code,
@@ -223,16 +243,13 @@ defmodule Exshape.Shp do
   #
   defp do_read(%State{mode: {:record, _, _}, shape_type: :multipoint} = s, <<
     8::little-integer-size(32),
-    xmin::little-float-size(64),
-    ymin::little-float-size(64),
-    xmax::little-float-size(64),
-    ymax::little-float-size(64),
+    bbox::binary-size(32),
     num_points::little-integer-size(32),
     rest::binary
   >>) do
     s
     |> repeatedly(num_points)
-    |> item(%Multipoint{bbox: %Bbox{xmin: xmin, ymin: ymin, xmax: xmax, ymax: ymax}})
+    |> item(%Multipoint{bbox: extract_bbox(bbox)})
     |> mode(:multipoint)
     |> do_read(rest)
   end
@@ -260,17 +277,14 @@ defmodule Exshape.Shp do
   #
   defp do_read(%State{mode: {:record, _, _}, shape_type: :polyline} = s, <<
     3::little-integer-size(32),
-    xmin::little-float-size(64),
-    ymin::little-float-size(64),
-    xmax::little-float-size(64),
-    ymax::little-float-size(64),
+    bbox::binary-size(32),
     num_parts::little-integer-size(32),
     num_points::little-integer-size(32),
     rest::binary
   >>) do
     s
     |> repeatedly(num_parts)
-    |> item(%Polyline{bbox: %Bbox{xmin: xmin, ymin: ymin, xmax: xmax, ymax: ymax}})
+    |> item(%Polyline{bbox: extract_bbox(bbox)})
     |> mode({:parts, {:polyline, num_points}})
     |> do_read(rest)
   end
@@ -298,17 +312,14 @@ defmodule Exshape.Shp do
   #
   defp do_read(%State{mode: {:record, _, _}, shape_type: :polygon} = s, <<
     5::little-integer-size(32),
-    xmin::little-float-size(64),
-    ymin::little-float-size(64),
-    xmax::little-float-size(64),
-    ymax::little-float-size(64),
+    bbox::binary-size(32),
     num_parts::little-integer-size(32),
     num_points::little-integer-size(32),
     rest::binary
   >>) do
     s
     |> repeatedly(num_parts)
-    |> item(%Polygon{bbox: %Bbox{xmin: xmin, ymin: ymin, xmax: xmax, ymax: ymax}})
+    |> item(%Polygon{bbox: extract_bbox(bbox)})
     |> mode({:parts, {:polygon, num_points}})
     |> do_read(rest)
   end
@@ -352,16 +363,13 @@ defmodule Exshape.Shp do
   #
   defp do_read(%State{mode: {:record, _, _}, shape_type: :multipointm} = s, <<
     28::little-integer-size(32),
-    xmin::little-float-size(64),
-    ymin::little-float-size(64),
-    xmax::little-float-size(64),
-    ymax::little-float-size(64),
+    bbox::binary-size(32),
     num_points::little-integer-size(32),
     rest::binary
   >>) do
     s
     |> repeatedly(num_points)
-    |> item(%MultipointM{bbox: %Bbox{xmin: xmin, ymin: ymin, xmax: xmax, ymax: ymax}})
+    |> item(%MultipointM{bbox: extract_bbox(bbox)})
     |> mode(:multipointm)
     |> do_read(rest)
   end
@@ -369,12 +377,11 @@ defmodule Exshape.Shp do
 
 
   defp do_read(%State{mode: :multipointm, to_read: 0} = s, <<
-    mmin::little-float-size(64),
-    mmax::little-float-size(64),
+    bbox_measures::binary-size(16),
     rest::binary
   >>) do
     num_points = length(s.item.points)
-    bbox = %{s.item.bbox | mmin: mmin, mmax: mmax}
+    bbox = update_bbox_measures(s.item.bbox, bbox_measures)
 
     s
     |> mode(:measures)
@@ -404,22 +411,14 @@ defmodule Exshape.Shp do
 
   defp do_read(%State{mode: {:record, _, _}, shape_type: st} = s, <<
     _::little-integer-size(32),
-    xmin::little-float-size(64),
-    ymin::little-float-size(64),
-    xmax::little-float-size(64),
-    ymax::little-float-size(64),
+    bbox::binary-size(32),
     num_parts::little-integer-size(32),
     num_points::little-integer-size(32),
     rest::binary
   >>) when st in @poly_m do
 
     t = Map.get(@poly_m_t, st)
-    item = struct(t, %{bbox: %Bbox{
-      xmin: xmin,
-      ymin: ymin,
-      xmax: xmax,
-      ymax: ymax
-    }})
+    item = struct(t, %{bbox: extract_bbox(bbox)})
 
     s
     |> repeatedly(num_parts)
@@ -429,12 +428,11 @@ defmodule Exshape.Shp do
   end
 
   defp do_read(%State{mode: mode, to_read: 0} = s, <<
-    mmin::little-float-size(64),
-    mmax::little-float-size(64),
+    bbox_measures::binary-size(16),
     rest::binary
   >>) when mode in @poly_m do
     num_points = length(s.item.points)
-    item = %{s.item | bbox: %{s.item.bbox | mmin: mmin, mmax: mmax}}
+    item = %{s.item | bbox: update_bbox_measures(s.item.bbox, bbox_measures)}
 
     s
     |> mode(:measures)
