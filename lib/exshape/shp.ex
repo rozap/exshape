@@ -101,7 +101,7 @@ defmodule Exshape.Shp do
   end
 
   defp emit(s, %Polygon{} = p) do
-    %{s | emit: [%{p | points: nest_parts(p)} | s.emit]}
+    %{s | emit: [%{p | points: nest_polygon(p)} | s.emit]}
   end
 
   defp emit(s, %Polyline{} = p) do
@@ -117,16 +117,19 @@ defmodule Exshape.Shp do
     %{s | emit: [mp | s.emit]}
   end
 
-  defp emit(s, %PolylineM{} = pm), do: emit_polym(s, pm)
-  defp emit(s, %PolygonM{} = pm),  do: emit_polym(s, pm)
-
-  defp emit(s, thing), do: %{s | emit: [thing | s.emit], item: nil}
-
-  defp emit_polym(s, p) do
-    p = zip_measures(p, s)
+  defp emit(s, %PolylineM{} = pm) do
+    p = zip_measures(pm, s)
     polylinem = %{p | points: nest_parts(p)}
     %{s | emit: [polylinem | s.emit]}
   end
+
+  defp emit(s, %PolygonM{} = pm) do
+    p = zip_measures(pm, s)
+    polylinem = %{p | points: nest_polygon(p)}
+    %{s | emit: [polylinem | s.emit]}
+  end
+
+  defp emit(s, thing), do: %{s | emit: [thing | s.emit], item: nil}
 
 
   defp mode(s, m), do: %{s | mode: m}
@@ -144,6 +147,55 @@ defmodule Exshape.Shp do
 
   defp put_measure(s, m), do: %{s | measures: [m | s.measures]}
 
+  def nest_polygon(p) do
+    {polys, holes} = nest_parts(p)
+    |> Enum.reduce({[], []}, fn ring, {polys, holes} ->
+      if is_clockwise?(ring) do
+        {[[ring] | polys], holes}
+      else
+        {polys, [ring | holes]}
+      end
+    end)
+
+
+    Enum.reverse(holes)
+    |> Enum.reduce(Enum.reverse(polys), fn hole, polys ->
+      nest_hole(hole, polys)
+    end)
+  end
+
+  def nest_hole(hole, []), do: [[hole]]
+  def nest_hole([point | _] = hole, [[first_ring | _] = poly | rest_polys]) do
+    if ring_contains?(first_ring, point) do
+      [poly ++ [hole] | rest_polys]
+    else
+      nest_hole(hole, rest_polys)
+    end
+  end
+
+  def is_clockwise?(points) when length(points) < 4, do: false
+  def is_clockwise?([prev | points]) do
+    {_, area} = Enum.reduce(points, {prev, 0}, fn %{x: x, y: y} = np, {%{x: xp, y: yp}, s} ->
+      {np, s + (x - xp) * (y + yp)}
+    end)
+
+    area >= 0
+  end
+
+  def ring_contains?([], _), do: false
+  def ring_contains?(ring, %{x: x, y: y}) do
+    {_, c} = Enum.reduce(ring, {List.last(ring), false}, fn %{x: ix, y: iy} = i, {%{x: jx, y: jy}, c} ->
+      c = if ((iy > y) != (jy > y)) && (x < ((((jx - ix) * (y - iy)) / (jy - iy)) + ix)) do
+        c = !c
+      else
+        c
+      end
+
+      {i, c}
+    end)
+
+    c
+  end
 
   defp extract_bbox(<<
     xmin::little-float-size(64),
@@ -502,7 +554,6 @@ defmodule Exshape.Shp do
     ```
       File.stream!("rivers.shp", [], 2048)
       |> Exshape.Shp.read
-      |> Stream.each(&IO.inspect/1)
       |> Stream.run
     ```
   """

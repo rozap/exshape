@@ -61,8 +61,10 @@ defmodule ExshapeTest do
     stream
     |> Stream.drop(1)
     |> Stream.each(fn {%Exshape.Shp.Polygon{points: points}, _attrs} ->
-      Enum.each(points, fn part ->
-        assert List.first(part) == List.last(part)
+      Enum.each(points, fn polys ->
+        Enum.each(polys, fn part ->
+          assert List.first(part) == List.last(part)
+        end)
       end)
     end)
     |> Stream.run
@@ -73,17 +75,17 @@ defmodule ExshapeTest do
       "#{__DIR__}/fixtures/howard-beach.zip"
     )
 
-    [{%Exshape.Shp.Polygon{points: [_, ring]}, _attrs}] = stream
+    [{%Exshape.Shp.Polygon{points: [[_, ring]]}, _attrs}] = stream
     |> Stream.drop(1)
     |> Enum.into([])
 
     assert ring == [
-      %Exshape.Shp.Point{x: -73.85161361099966, y: 40.64986601600033},
-      %Exshape.Shp.Point{x: -73.85169718399973, y: 40.64982533900025},
-      %Exshape.Shp.Point{x: -73.85164616599978, y: 40.649837659000205},
-      %Exshape.Shp.Point{x: -73.85162201099982, y: 40.649846004000274},
-      %Exshape.Shp.Point{x: -73.85161361099966, y: 40.64986601600033}
-    ]
+        %Exshape.Shp.Point{x: -73.85161361099966, y: 40.64986601600033},
+        %Exshape.Shp.Point{x: -73.85169718399973, y: 40.64982533900025},
+        %Exshape.Shp.Point{x: -73.85164616599978, y: 40.649837659000205},
+        %Exshape.Shp.Point{x: -73.85162201099982, y: 40.649846004000274},
+        %Exshape.Shp.Point{x: -73.85161361099966, y: 40.64986601600033}
+      ]
   end
 
   test "hoods" do
