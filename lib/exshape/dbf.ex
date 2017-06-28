@@ -62,6 +62,7 @@ defmodule Exshape.Dbf do
  end
   defp munge(:boolean, "T"), do: true
   defp munge(:boolean, "F"), do: false
+  defp munge(:boolean, "?"), do: false
   defp munge(:numeric, datum) do
     case trim_leading(datum) do
       "" -> nil
