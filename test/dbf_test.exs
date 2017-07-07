@@ -35,7 +35,6 @@ defmodule DbfTest do
     ]
   end
 
-
   test "uninitialized logical fields" do
     assert fixture("uninitialized_logical.dbf")
     |> Dbf.read

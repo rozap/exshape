@@ -9,6 +9,7 @@ defmodule Exshape do
   defp open_shp(c, size), do: File.stream!(c, [], size) |> Shp.read
   defp open_dbf(c, size), do: File.stream!(c, [], size) |> Dbf.read
 
+
   defp zip(nil, nil, _), do: []
   defp zip(nil, d, size), do: open_dbf(d, size)
   defp zip(s, nil, size), do: open_shp(s, size)
@@ -42,7 +43,7 @@ defmodule Exshape do
   def from_zip(path, opts \\ []) do
 
     cwd = Keyword.get(opts, :working_dir, '/tmp/exshape_#{UUID.uuid4}')
-    size = Keyword.get(opts, :read_size, 1024 * 512)
+    size = Keyword.get(opts, :read_size, 1024 * 1024)
     File.mkdir_p!(cwd)
     with {:ok, files} <- :zip.extract(to_charlist(path), cwd: cwd) do
       files
