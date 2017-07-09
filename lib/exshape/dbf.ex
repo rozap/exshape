@@ -39,8 +39,12 @@ defmodule Exshape.Dbf do
   defp trim_leading(s), do: s
 
   defp munge_row(columns, row) do
-    Enum.zip(columns, row)
-    |> Enum.map(fn {c, datum} -> munge(c.field_type, datum) end)
+    columns
+    |> Enum.zip(row)
+    |> Enum.map(fn {c, datum} ->
+      {c.name, munge(c.field_type, datum)}
+    end)
+    |> Enum.into(%{})
   end
 
   defp munge(:character, datum), do: trim_trailing(datum)
