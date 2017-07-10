@@ -28,6 +28,11 @@ defmodule DbfTest do
     |> Dbf.read
     |> Enum.into([])
 
+    records = Enum.map(records, fn row -> Enum.map(row, fn
+      bin when is_binary(bin) -> String.trim(bin)
+      other -> other
+    end) end)
+
     assert records == [
       ["some chars", true, 4, 8.8, ~D[1980-10-11]],
       ["more chars", false, 1, 2.2, ~D[1980-12-11]],

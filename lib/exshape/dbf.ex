@@ -28,12 +28,12 @@ defmodule Exshape.Dbf do
 
   # This is ~2x faster than doing regex stuff and about ~3x faster than using
   # the functions in the stdlib
-  defp do_trim_trailing(o, " " <> s, i, l), do: do_trim_trailing(o, s, i + 1, l)
-  defp do_trim_trailing(o, <<_::binary-size(1), rest::binary>>, i, _), do: do_trim_trailing(o, rest, i + 1, i + 1)
-  defp do_trim_trailing(o, _, i, i), do: o
-  defp do_trim_trailing(o, _, _, l), do: :binary.part(o, {0, l})
+  # defp do_trim_trailing(o, " " <> s, i, l), do: do_trim_trailing(o, s, i + 1, l)
+  # defp do_trim_trailing(o, <<_::binary-size(1), rest::binary>>, i, _), do: do_trim_trailing(o, rest, i + 1, i + 1)
+  # defp do_trim_trailing(o, _, i, i), do: o
+  # defp do_trim_trailing(o, _, _, l), do: :binary.part(o, {0, l})
 
-  def trim_trailing(s), do: do_trim_trailing(s, s, 0, 0)
+  # def trim_trailing(s), do: do_trim_trailing(s, s, 0, 0)
 
   defp trim_leading(" " <> s), do: trim_leading(s)
   defp trim_leading(s), do: s
@@ -43,7 +43,7 @@ defmodule Exshape.Dbf do
     |> Enum.map(fn {c, datum} -> munge(c.field_type, datum) end)
   end
 
-  defp munge(:character, datum), do: trim_trailing(datum)
+  defp munge(:character, datum), do: datum
   defp munge(:date, <<
     year::binary-size(4),
     month::binary-size(2),

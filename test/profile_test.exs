@@ -8,10 +8,10 @@
 #     )
 
 
-#     then = :erlang.system_time(:micro_seconds)
-#     Enum.take(stream, 30000)
-#     now = :erlang.system_time(:micro_seconds)
-#     IO.puts "It took #{now - then} micro seconds"
+#     then = :erlang.system_time(:seconds)
+#     Stream.run(stream)
+#     now = :erlang.system_time(:seconds)
+#     IO.puts "It took #{now - then} seconds"
 
 #     # :fprof.trace([:start, {:procs, self}])
 #     # Enum.take(stream, 2000)
