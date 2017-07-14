@@ -94,4 +94,14 @@ defmodule ExshapeTest do
     |> Enum.into([])
     |> length == 75
   end
+
+  test "chicago zoning" do
+    [{_, _, stream}] = zip("chicago_zoning") |> Exshape.from_zip()
+    assert Enum.into(stream, []) |> length == 12288
+  end
+
+  test "seattle basketball" do
+    [{_, _, stream}] = zip("seattle_basketball_points") |> Exshape.from_zip()
+    assert Enum.into(stream, []) |> length == 50
+  end
 end

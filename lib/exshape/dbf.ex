@@ -28,15 +28,17 @@ defmodule Exshape.Dbf do
 
   # This is ~2x faster than doing regex stuff and about ~3x faster than using
   # the functions in the stdlib
-  # defp do_trim_trailing(o, " " <> s, i, l), do: do_trim_trailing(o, s, i + 1, l)
-  # defp do_trim_trailing(o, <<_::binary-size(1), rest::binary>>, i, _), do: do_trim_trailing(o, rest, i + 1, i + 1)
-  # defp do_trim_trailing(o, _, i, i), do: o
-  # defp do_trim_trailing(o, _, _, l), do: :binary.part(o, {0, l})
+  defp do_trim_trailing(o, " " <> s, i, l), do: do_trim_trailing(o, s, i + 1, l)
+  defp do_trim_trailing(o, <<_::binary-size(1), rest::binary>>, i, _), do: do_trim_trailing(o, rest, i + 1, i + 1)
+  defp do_trim_trailing(o, _, i, i), do: o
+  defp do_trim_trailing(o, _, _, l), do: :binary.part(o, {0, l})
 
-  # def trim_trailing(s), do: do_trim_trailing(s, s, 0, 0)
+  def trim_trailing(s), do: do_trim_trailing(s, s, 0, 0)
 
   defp trim_leading(" " <> s), do: trim_leading(s)
   defp trim_leading(s), do: s
+
+  defp trim(s), do: s |> trim_leading |> trim_trailing
 
   defp munge_row(columns, row) do
     Enum.zip(columns, row)
@@ -49,12 +51,16 @@ defmodule Exshape.Dbf do
     month::binary-size(2),
     day::binary-size(2)
   >>) do
-    y = String.to_integer(year)
-    m = String.to_integer(month)
-    d = String.to_integer(day)
-    case Date.from_erl({y, m, d}) do
-      {:error, :invalid_date} -> {y, m, d}
-      {:ok, d} -> d
+
+    with {y, _} <- Integer.parse(year),
+      {m, _} <- Integer.parse(month),
+      {d, _} <- Integer.parse(day) do
+      case Date.from_erl({y, m, d}) do
+        {:error, :invalid_date} -> {y, m, d}
+        {:ok, d} -> d
+      end
+    else
+      nil
     end
   end
   defp munge(:float, datum) do

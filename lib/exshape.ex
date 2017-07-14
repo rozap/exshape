@@ -18,6 +18,26 @@ defmodule Exshape do
   defp projection(nil), do: nil
   defp projection(prj), do: File.read!(prj)
 
+  defp ls_r(cwd) do
+    File.ls!(cwd)
+    |> Enum.map(&Path.join([cwd, &1]))
+    |> Enum.flat_map(fn file ->
+      if File.regular?(file) do
+        # File
+        [file]
+      else
+        # Dir
+        ls_r(file)
+      end
+    end)
+  end
+
+  defp unzip(path, cwd, false), do: :zip.extract(to_charlist(path), cwd: cwd)
+  defp unzip(path, cwd, true) do
+    {_, 0} = System.cmd("unzip", [path, "-d", cwd])
+    {:ok, ls_r(cwd)}
+  end
+
   @doc """
     Given a zip file path, unzip it and open streams for the underlying
     shape data.
@@ -32,6 +52,10 @@ defmodule Exshape do
     By default this reads in 1024 * 512 byte chunks. Pass the `:read_size`
     option to change this.
 
+    By default this shells out to the `unzip` system cmd, to use the built in erlang
+    one, pass `unzip_shell: true`. The default behavior is to use the system one because
+    the erlang one tends to not support as many formats.
+
     ```
     [{layer_name, projection, feature_stream}] = Exshape.from_zip("single_layer.zip")
     ```
@@ -45,7 +69,7 @@ defmodule Exshape do
     cwd = Keyword.get(opts, :working_dir, '/tmp/exshape_#{UUID.uuid4}')
     size = Keyword.get(opts, :read_size, 1024 * 1024)
     File.mkdir_p!(cwd)
-    with {:ok, files} <- :zip.extract(to_charlist(path), cwd: cwd) do
+    with {:ok, files} <- unzip(path, cwd, Keyword.get(opts, :unzip_shell, true)) do
       files
       |> Enum.group_by(&Path.rootname/1)
       |> Enum.flat_map(fn {root, components} ->
