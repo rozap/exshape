@@ -38,7 +38,7 @@ defmodule Exshape.Dbf do
   defp trim_leading(" " <> s), do: trim_leading(s)
   defp trim_leading(s), do: s
 
-  defp trim(s), do: s |> trim_leading |> trim_trailing
+  # defp trim(s), do: s |> trim_leading |> trim_trailing
 
   defp munge_row(columns, row) do
     Enum.zip(columns, row)
@@ -56,11 +56,11 @@ defmodule Exshape.Dbf do
       {m, _} <- Integer.parse(month),
       {d, _} <- Integer.parse(day) do
       case Date.from_erl({y, m, d}) do
-        {:error, :invalid_date} -> {y, m, d}
+        {:error, :invalid_date} -> nil
         {:ok, d} -> d
       end
     else
-      nil
+      _ -> nil
     end
   end
   defp munge(:float, datum) do
