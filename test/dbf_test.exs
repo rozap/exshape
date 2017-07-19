@@ -34,9 +34,9 @@ defmodule DbfTest do
     end) end)
 
     assert records == [
-      ["some chars", true, 4, 8.8, ~D[1980-10-11]],
-      ["more chars", false, 1, 2.2, ~D[1980-12-11]],
-      ["more characters", false, 1, 2.2, ~D[1980-12-11]]
+      %{"A_CHAR" => "some chars", "A_BOOL" => true, "A_NUMBER" => 4, "A_FLOAT" => 8.8, "A_DATE" => ~D[1980-10-11]},
+      %{"A_CHAR" => "more chars", "A_BOOL" => false, "A_NUMBER" => 1, "A_FLOAT" => 2.2, "A_DATE" => ~D[1980-12-11]},
+      %{"A_CHAR" => "more characters", "A_BOOL" => false, "A_NUMBER" => 1, "A_FLOAT" => 2.2, "A_DATE" => ~D[1980-12-11]},
     ]
   end
 

@@ -10,9 +10,9 @@ defmodule ExshapeTest do
 
     [
       {shp_header, dbf_header},
-      {p0, [nil]},
-      {p1, [nil]},
-      {p2, [nil]}
+      {p0, %{"point_ID" => nil}},
+      {p1, %{"point_ID" => nil}},
+      {p2, %{"point_ID" => nil}}
     ] = Enum.into(stream, [])
 
     assert shp_header.bbox == %Exshape.Shp.Bbox{
