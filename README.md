@@ -6,10 +6,10 @@ Parse ESRI Shapefiles
 
 ## Usage
 ### Installation
-Add 
+Add
 
 ```elixir
-{:exshape, "~> 0.2.5"}
+{:exshape, "~> 2.0.6"}
 ```
 
 to `mix.exs` deps
