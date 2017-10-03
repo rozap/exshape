@@ -73,9 +73,9 @@ defmodule Exshape do
       files
       |> Enum.group_by(&Path.rootname/1)
       |> Enum.flat_map(fn {root, components} ->
-        prj = projection(Enum.find(components, fn c -> Path.extname(c) == ".prj" end))
-        shp = Enum.find(components, fn c -> Path.extname(c) == ".shp" end)
-        dbf = Enum.find(components, fn c -> Path.extname(c) == ".dbf" end)
+        prj = projection(Enum.find(components, fn c -> extension_equals(c, ".prj") end))
+        shp = Enum.find(components, fn c -> extension_equals(c, ".shp") end)
+        dbf = Enum.find(components, fn c -> extension_equals(c, ".dbf") end)
 
         if !is_nil(shp) && !is_nil(dbf) do
           stream = zip(shp, dbf, size)
@@ -86,4 +86,12 @@ defmodule Exshape do
       end)
     end
   end
+
+  defp extension_equals(path, wanted_ext) do
+    case Path.extname(path) do
+      nil -> false
+      ext -> String.downcase(ext) == wanted_ext
+    end
+  end
+
 end
