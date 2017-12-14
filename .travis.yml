@@ -1,8 +1,8 @@
 language: elixir
 elixir:
-  - 1.4.1
+  - '1.5'
 otp_release:
-  - 19.2
+  - '20.1'
 sudo: false
 before_script:
   - mix deps.get --only test
