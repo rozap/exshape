@@ -34,7 +34,7 @@ defmodule Exshape do
 
   defp unzip(path, cwd, false), do: :zip.extract(to_charlist(path), cwd: cwd)
   defp unzip(path, cwd, true) do
-    {_, 0} = System.cmd("unzip", [path, "-d", cwd])
+    {_, 0} = System.cmd("unzip", [path, "-d", to_string(cwd)])
     {:ok, ls_r(cwd)}
   end
 
