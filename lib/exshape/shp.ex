@@ -186,7 +186,7 @@ defmodule Exshape.Shp do
   def ring_contains?(ring, %{x: x, y: y}) do
     {_, c} = Enum.reduce(ring, {List.last(ring), false}, fn %{x: ix, y: iy} = i, {%{x: jx, y: jy}, c} ->
       c = if ((iy > y) != (jy > y)) && (x < ((((jx - ix) * (y - iy)) / (jy - iy)) + ix)) do
-        c = !c
+        !c
       else
         c
       end
