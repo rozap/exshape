@@ -45,7 +45,11 @@ defmodule Exshape.Dbf do
     |> Enum.map(fn {c, datum} -> munge(c.field_type, datum) end)
   end
 
-  defp munge(:character, datum), do: datum
+  defp munge(:character, datum) do
+    with {:error, close_enough, _} <- :unicode.characters_to_binary(datum) do
+      close_enough
+    end
+  end
   defp munge(:date, <<
     year::binary-size(4),
     month::binary-size(2),
@@ -172,7 +176,7 @@ defmodule Exshape.Dbf do
     name = name
     |> :binary.bin_to_list
     |> Enum.filter(fn n -> n > 0 end)
-    |> to_string
+    |> :unicode.characters_to_binary
 
     s
     |> add_column(%Column{
