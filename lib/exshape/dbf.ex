@@ -1,5 +1,5 @@
 defmodule Exshape.Dbf do
-
+  alias Exshape.TwelveFiftyTwo
   defmodule Header do
     defstruct [:last_updated,
       :record_count,
@@ -45,11 +45,7 @@ defmodule Exshape.Dbf do
     |> Enum.map(fn {c, datum} -> munge(c.field_type, datum) end)
   end
 
-  defp munge(:character, datum) do
-    with {:error, close_enough, _} <- :unicode.characters_to_binary(datum) do
-      close_enough
-    end
-  end
+  defp munge(:character, datum), do: TwelveFiftyTwo.convert(datum)
   defp munge(:date, <<
     year::binary-size(4),
     month::binary-size(2),

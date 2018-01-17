@@ -104,4 +104,9 @@ defmodule ExshapeTest do
     [{_, _, stream}] = zip("seattle_basketball_points") |> Exshape.from_zip()
     assert Enum.into(stream, []) |> length == 50
   end
+
+  test "thing?" do
+    [{_, _, stream}] = zip("speed_enforcement") |> Exshape.from_zip()
+    assert Enum.into(stream, []) |> length == 1203
+  end
 end
