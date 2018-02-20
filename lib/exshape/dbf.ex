@@ -38,14 +38,18 @@ defmodule Exshape.Dbf do
   defp trim_leading(" " <> s), do: trim_leading(s)
   defp trim_leading(s), do: s
 
-  # defp trim(s), do: s |> trim_leading |> trim_trailing
-
   defp munge_row(columns, row) do
     Enum.zip(columns, row)
     |> Enum.map(fn {c, datum} -> munge(c.field_type, datum) end)
   end
 
-  defp munge(:character, datum), do: TwelveFiftyTwo.convert(datum)
+  defp munge(:character, datum) do
+    if String.valid?(datum) do
+      datum
+    else
+      TwelveFiftyTwo.convert(datum)
+    end
+  end
   defp munge(:date, <<
     year::binary-size(4),
     month::binary-size(2),
@@ -191,14 +195,6 @@ defmodule Exshape.Dbf do
     |> next_column()
     |> do_read(rest)
   end
-
-  # defp do_read(%State{mode: :pre_row} = s, <<
-  #   26::little-integer-size(8),
-  #   _
-  # >>) do
-  #   mode(s, :done)
-  #   |> IO.inspect
-  # end
 
   defp do_read(%State{mode: {:row, len, _}} = s, bin) do
     case bin do
