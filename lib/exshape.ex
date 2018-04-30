@@ -21,14 +21,17 @@ defmodule Exshape do
   defp ls_r(cwd) do
     File.ls!(cwd)
     |> Enum.map(&Path.join([cwd, &1]))
-    |> Enum.flat_map(fn file ->
-      if File.regular?(file) do
-        # File
-        [file]
-      else
-        # Dir
-        ls_r(file)
-      end
+    |> Enum.flat_map(fn
+      "__MACOSX" -> [] # Ignore OSX garbage
+      "." <> _ -> [] # Ignore hidden files
+      file -> # We'll consider it
+        if File.regular?(file) do
+          # File
+          [file]
+        else
+          # Dir
+          ls_r(file)
+        end
     end)
   end
 
