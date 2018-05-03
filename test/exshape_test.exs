@@ -60,11 +60,10 @@ defmodule ExshapeTest do
 
     stream
     |> Stream.drop(1)
-    |> Stream.each(fn {%Exshape.Shp.Polygon{points: points}, _attrs} ->
-      Enum.each(points, fn polys ->
-        Enum.each(polys, fn part ->
-          assert List.first(part) == List.last(part)
-        end)
+    |> Stream.each(fn {%Exshape.Shp.Polygon{points: rings}, _attrs} ->
+
+      Enum.each(rings, fn ring ->
+        assert List.first(ring) == List.last(ring)
       end)
     end)
     |> Stream.run
@@ -75,7 +74,7 @@ defmodule ExshapeTest do
       "#{__DIR__}/fixtures/howard-beach.zip"
     )
 
-    [{%Exshape.Shp.Polygon{points: [[_, ring]]}, _attrs}] = stream
+    [{%Exshape.Shp.Polygon{points: [_, ring]}, _attrs}] = stream
     |> Stream.drop(1)
     |> Enum.into([])
 

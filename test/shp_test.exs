@@ -76,22 +76,18 @@ defmodule ShpTest do
     assert polygon == %Polygon{
       points: [
         [
-          [
-            %Point{x: 0, y: 0},
-            %Point{x: 0, y: 5},
-            %Point{x: 5, y: 5},
-            %Point{x: 5, y: 0},
-            %Point{x: 0, y: 0}
-          ]
+          %Point{x: 0, y: 0},
+          %Point{x: 0, y: 5},
+          %Point{x: 5, y: 5},
+          %Point{x: 5, y: 0},
+          %Point{x: 0, y: 0}
         ],
         [
-          [
-            %Point{x: 0, y: 0},
-            %Point{x: 0, y: 5},
-            %Point{x: 5, y: 5},
-            %Point{x: 5, y: 0},
-            %Point{x: 0, y: 0}
-          ]
+          %Point{x: 0, y: 0},
+          %Point{x: 0, y: 5},
+          %Point{x: 5, y: 5},
+          %Point{x: 5, y: 0},
+          %Point{x: 0, y: 0}
         ]
       ],
       parts: [0, 5],
@@ -168,13 +164,11 @@ defmodule ShpTest do
       %PolygonM{
         points: [
           [
-            [
-              %PointM{x: 0, y: 0, m: 0},
-              %PointM{x: 0, y: 5, m: 5},
-              %PointM{x: 5, y: 5, m: 10},
-              %PointM{x: 5, y: 0, m: 15},
-              %PointM{x: 0, y: 0, m: 0}
-            ]
+            %PointM{x: 0, y: 0, m: 0},
+            %PointM{x: 0, y: 5, m: 5},
+            %PointM{x: 5, y: 5, m: 10},
+            %PointM{x: 5, y: 0, m: 15},
+            %PointM{x: 0, y: 0, m: 0}
           ]
         ],
         parts: [0],
@@ -201,58 +195,18 @@ defmodule ShpTest do
       ])
     }) == [
       [
-        [
-          %Point{x: 0, y: 4},
-          %Point{x: 4, y: 4},
-          %Point{x: 4, y: 0},
-          %Point{x: 0, y: 0},
-          %Point{x: 0, y: 4},
-        ],
-        [
-          %Point{x: 2, y: 2},
-          %Point{x: 1, y: 2},
-          %Point{x: 1, y: 1},
-          %Point{x: 2, y: 1},
-          %Point{x: 2, y: 2}
-        ]
-      ]
-    ]
-  end
-
-  test "appends a part to the polygon when the part is clockwise" do
-    assert Shp.nest_polygon(%Polygon{
-      parts: [0, 5],
-      points: Enum.reverse([
         %Point{x: 0, y: 4},
         %Point{x: 4, y: 4},
         %Point{x: 4, y: 0},
         %Point{x: 0, y: 0},
         %Point{x: 0, y: 4},
-
-        %Point{x: 2, y: 2},
-        %Point{x: 3, y: 2},
-        %Point{x: 3, y: 1},
-        %Point{x: 2, y: 1},
-        %Point{x: 2, y: 2}
-      ])
-    }) == [
-      [
-        [
-          %Point{x: 0, y: 4},
-          %Point{x: 4, y: 4},
-          %Point{x: 4, y: 0},
-          %Point{x: 0, y: 0},
-          %Point{x: 0, y: 4},
-        ]
       ],
       [
-        [
-          %Point{x: 2, y: 2},
-          %Point{x: 3, y: 2},
-          %Point{x: 3, y: 1},
-          %Point{x: 2, y: 1},
-          %Point{x: 2, y: 2}
-        ]
+        %Point{x: 2, y: 2},
+        %Point{x: 1, y: 2},
+        %Point{x: 1, y: 1},
+        %Point{x: 2, y: 1},
+        %Point{x: 2, y: 2}
       ]
     ]
   end
@@ -275,30 +229,6 @@ defmodule ShpTest do
         %Point{x: 4, y: 0},
         %Point{x: 4, y: 4}
       ]) == false
-  end
-
-  test "contains" do
-    assert Shp.ring_contains?(
-      [
-        %Point{x: 0, y: 0},
-        %Point{x: 4, y: 0},
-        %Point{x: 4, y: 4},
-        %Point{x: 0, y: 4},
-        %Point{x: 0, y: 0}
-      ],
-      %Point{x: 1, y: 1}
-    ) == true
-
-    assert Shp.ring_contains?(
-      [
-        %Point{x: 0, y: 0},
-        %Point{x: 4, y: 0},
-        %Point{x: 4, y: 4},
-        %Point{x: 0, y: 4},
-        %Point{x: 0, y: 0}
-      ],
-      %Point{x: 5, y: 5}
-    ) == false
   end
 
   test "can nest many holes" do
@@ -325,80 +255,26 @@ defmodule ShpTest do
       ])
     }) == [
       [
-        [
-          %Point{x: 0, y: 5},
-          %Point{x: 5, y: 5},
-          %Point{x: 5, y: 0},
-          %Point{x: 0, y: 0},
-          %Point{x: 0, y: 5},
-        ],
-        [
-          %Point{x: 2, y: 2},
-          %Point{x: 1, y: 2},
-          %Point{x: 1, y: 1},
-          %Point{x: 2, y: 1},
-          %Point{x: 2, y: 2}
-        ],
-        [
-          %Point{x: 4, y: 3},
-          %Point{x: 3, y: 3},
-          %Point{x: 3, y: 2},
-          %Point{x: 4, y: 2},
-          %Point{x: 4, y: 3}
-        ]
-      ]
-    ]
-  end
-
-  test "can nest holes and rings" do
-    assert Shp.nest_polygon(%Polygon{
-      parts: [0, 5, 10],
-      points: Enum.reverse([
         %Point{x: 0, y: 5},
         %Point{x: 5, y: 5},
         %Point{x: 5, y: 0},
         %Point{x: 0, y: 0},
         %Point{x: 0, y: 5},
-
+      ],
+      [
         %Point{x: 2, y: 2},
         %Point{x: 1, y: 2},
         %Point{x: 1, y: 1},
         %Point{x: 2, y: 1},
-        %Point{x: 2, y: 2},
-
-        %Point{x: 10, y: 10},
-        %Point{x: 11, y: 10},
-        %Point{x: 11, y: 9},
-        %Point{x: 10, y: 9},
-        %Point{x: 10, y: 10}
-      ])
-    }) == [
-      [
-        [
-          %Point{x: 0, y: 5},
-          %Point{x: 5, y: 5},
-          %Point{x: 5, y: 0},
-          %Point{x: 0, y: 0},
-          %Point{x: 0, y: 5},
-        ],
-        [
-          %Point{x: 2, y: 2},
-          %Point{x: 1, y: 2},
-          %Point{x: 1, y: 1},
-          %Point{x: 2, y: 1},
-          %Point{x: 2, y: 2}
-        ]
+        %Point{x: 2, y: 2}
       ],
       [
-        [
-          %Point{x: 10, y: 10},
-          %Point{x: 11, y: 10},
-          %Point{x: 11, y: 9},
-          %Point{x: 10, y: 9},
-          %Point{x: 10, y: 10}
-        ]
+        %Point{x: 4, y: 3},
+        %Point{x: 3, y: 3},
+        %Point{x: 3, y: 2},
+        %Point{x: 4, y: 2},
+        %Point{x: 4, y: 3}
       ]
     ]
   end
-
 end

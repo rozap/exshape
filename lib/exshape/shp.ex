@@ -73,25 +73,6 @@ defmodule Exshape.Shp do
     def shape_type_to_struct(unquote(t)), do: struct!(unquote(s))
   end)
 
-  defp nest_parts(item) do
-    {parts, _} = item.points
-    |> Enum.reverse
-    |> Enum.reduce({[], 0}, fn
-      point, {[], 0} -> {[[point]], 1}
-      point, {nested, i} ->
-        if i in item.parts do
-          {[[point] | nested], i + 1}
-        else
-          [nest | rest_nested] = nested
-          {[[point | nest] | rest_nested], i + 1}
-        end
-    end)
-
-    parts
-    |> Enum.map(&Enum.reverse/1)
-    |> Enum.reverse
-  end
-
   defp zip_measures(p, s) do
     points = p.points
     |> Enum.zip(s.measures)
@@ -105,7 +86,7 @@ defmodule Exshape.Shp do
   end
 
   defp emit(s, %Polyline{} = p) do
-    %{s | emit: [%{p | points: nest_parts(p)} | s.emit]}
+    %{s | emit: [%{p | points: unflatten_parts(p)} | s.emit]}
   end
 
   defp emit(s, %Multipoint{} = mp) do
@@ -119,7 +100,7 @@ defmodule Exshape.Shp do
 
   defp emit(s, %PolylineM{} = pm) do
     p = zip_measures(pm, s)
-    polylinem = %{p | points: nest_parts(p)}
+    polylinem = %{p | points: unflatten_parts(p)}
     %{s | emit: [polylinem | s.emit]}
   end
 
@@ -147,30 +128,50 @@ defmodule Exshape.Shp do
 
   defp put_measure(s, m), do: %{s | measures: [m | s.measures]}
 
-  def nest_polygon(p) do
-    {polys, holes} = nest_parts(p)
-    |> Enum.reduce({[], []}, fn ring, {polys, holes} ->
-      if is_clockwise?(ring) do
-        {[[ring] | polys], holes}
-      else
-        {polys, [ring | holes]}
-      end
+  defp unflatten_parts(item) do
+    parts_map = MapSet.new(item.parts)
+
+    count = length(item.points) - 1
+    # Moving backwards through this list allows us to do fewer reverse calls,
+    # but it is more confusing
+    {parts, _} = item.points
+    |> Enum.reduce({[], count}, fn
+      point, {nested, 0} ->
+        [nest | rest_nested] = nested
+        {[[point | nest] | rest_nested], 0}
+      point, {[], ^count} ->
+        {[[point]], count - 1}
+      point, {nested, i} ->
+        [nest | rest_nested] = nested
+        new_nest = [point | nest]
+
+        if MapSet.member?(parts_map, i) do
+          {[[], new_nest | rest_nested], i - 1}
+        else
+          {[new_nest | rest_nested], i - 1}
+        end
     end)
 
-
-    Enum.reverse(holes)
-    |> Enum.reduce(Enum.reverse(polys), fn hole, polys ->
-      nest_hole(hole, polys)
-    end)
+    parts
   end
 
-  def nest_hole(hole, []), do: [[hole]]
-  def nest_hole([point | _] = hole, [[first_ring | _] = poly | rest_polys]) do
-    if ring_contains?(first_ring, point) do
-      [poly ++ [hole] | rest_polys]
-    else
-      nest_hole(hole, rest_polys)
-    end
+  def nest_polygon(p) do
+    rings = unflatten_parts(p)
+
+    {poly, holes} = Enum.reduce(rings, {nil, []}, fn
+      ring, {nil, holes} ->
+        if is_clockwise?(ring) do
+          # This means the ring is the outer boundary
+          {ring, holes}
+        else
+          # The ring is a hole
+          {nil, [ring | holes]}
+        end
+      ring, {poly, holes} ->
+        {poly, [ring | holes]}
+    end)
+
+    [poly | Enum.reverse(holes)]
   end
 
   def is_clockwise?(points) when length(points) < 4, do: false
@@ -180,21 +181,6 @@ defmodule Exshape.Shp do
     end)
 
     area >= 0
-  end
-
-  def ring_contains?([], _), do: false
-  def ring_contains?(ring, %{x: x, y: y}) do
-    {_, c} = Enum.reduce(ring, {List.last(ring), false}, fn %{x: ix, y: iy} = i, {%{x: jx, y: jy}, c} ->
-      c = if ((iy > y) != (jy > y)) && (x < ((((jx - ix) * (y - iy)) / (jy - iy)) + ix)) do
-        !c
-      else
-        c
-      end
-
-      {i, c}
-    end)
-
-    c
   end
 
   defp extract_bbox(<<
