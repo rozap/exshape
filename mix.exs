@@ -3,7 +3,7 @@ defmodule Exshape.Mixfile do
 
   def project do
     [app: :exshape,
-     version: "2.0.11",
+     version: "3.0.0",
      elixir: "~> 1.5",
      description: description(),
      package: package(),

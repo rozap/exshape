@@ -171,24 +171,7 @@ defmodule Exshape.Shp do
         {poly, [ring | holes]}
     end)
 
-    # Enum.reduce(rings, [], fn ring, exteriors ->
-    #   nest_hole(ring, exteriors)
-    # end) |> IO.inspect
-
-
-    [poly | holes]
-    # Enum.reduce(holes, poly, fn hole, poly ->
-    #   nest_hole(hole, poly)
-    # end)
-  end
-
-  def nest_hole(hole, []), do: [[hole]]
-  def nest_hole([point | _] = hole, [[first_ring | _] = poly | rest_polys]) do
-    if ring_contains?(first_ring, point) do
-      [poly ++ [hole] | rest_polys]
-    else
-      nest_hole(hole, rest_polys)
-    end
+    [poly | Enum.reverse(holes)]
   end
 
   def is_clockwise?(points) when length(points) < 4, do: false
@@ -198,21 +181,6 @@ defmodule Exshape.Shp do
     end)
 
     area >= 0
-  end
-
-  def ring_contains?([], _), do: false
-  def ring_contains?(ring, %{x: x, y: y}) do
-    {_, c} = Enum.reduce(ring, {List.last(ring), false}, fn %{x: ix, y: iy} = i, {%{x: jx, y: jy}, c} ->
-      c = if ((iy > y) != (jy > y)) && (x < ((((jx - ix) * (y - iy)) / (jy - iy)) + ix)) do
-        !c
-      else
-        c
-      end
-
-      {i, c}
-    end)
-
-    c
   end
 
   defp extract_bbox(<<
