@@ -165,6 +165,9 @@ defmodule Exshape.Shp do
   end
 
   def nest_hole(hole, []), do: [[hole]]
+  # Optimization for the most common case: if there's only one exterior ring,
+  # the hole gets put in it, rather than verifying that it contains it (the spec
+  # says that it must contain it, otherwise there would be holes in empty space)
   def nest_hole(hole, [poly]), do: [poly ++ [hole]]
   def nest_hole([point | _] = hole, [[first_ring | _] = poly | rest_polys]) do
     if ring_contains?(first_ring, point) do
@@ -562,7 +565,7 @@ defmodule Exshape.Shp do
     Stream.transform(byte_stream, {<<>>, %State{}}, fn bin, {buf, state} ->
       case do_read(state, buf <> bin) do
         {_,   %State{mode: :done}} = s -> {:halt, s}
-        {buf, %State{emit: emit} = s}-> {Enum.reverse(emit), {buf, %{s | emit: []}}}
+        {buf, %State{emit: emit} = s} -> {Enum.reverse(emit), {buf, %{s | emit: []}}}
       end
     end)
   end
