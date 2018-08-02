@@ -32,14 +32,14 @@ defmodule Exshape.TwelveFiftyTwo do
  }
 
  defp convert(<<>>, chunks) do
-   :erlang.list_to_binary(Enum.reverse(chunks))
+   List.to_string(Enum.reverse(chunks))
  end
  defp convert(<<b, bs :: binary>>, chunks) when b < 0x80 or b > 0x9f do
    convert(bs, [b | chunks])
  end
  Enum.each(0x80..0x9f, fn byte ->
    defp convert(<<unquote(byte), bs :: binary>>, chunks) do
-     convert(bs, [<<unquote(Map.get(@table, byte, byte)) :: utf8>> | chunks])
+     convert(bs, [unquote(Map.get(@table, byte, byte)) | chunks])
    end
  end)
 end
