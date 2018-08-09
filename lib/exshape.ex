@@ -71,22 +71,47 @@ defmodule Exshape do
 
     cwd = Keyword.get(opts, :working_dir, '/tmp/exshape_#{UUID.uuid4}')
     size = Keyword.get(opts, :read_size, 1024 * 1024)
-    File.mkdir_p!(cwd)
-    with {:ok, files} <- unzip(path, cwd, Keyword.get(opts, :unzip_shell, true)) do
+
+    with {:ok, files} <- :zip.table(String.to_charlist(path)) do
       files
+      |> Enum.filter(fn {:zip_file, _filename, _, _, _, _} -> true; _ -> false end)
+      |> Enum.map(fn {:zip_file, filename, _, _, _, _} -> filename end)
       |> Enum.group_by(&Path.rootname/1)
       |> Enum.flat_map(fn {root, components} ->
-        prj = projection(Enum.find(components, fn c -> extension_equals(c, ".prj") end))
+        prj = Enum.find(components, fn c -> extension_equals(c, ".prj") end)
         shp = Enum.find(components, fn c -> extension_equals(c, ".shp") end)
         dbf = Enum.find(components, fn c -> extension_equals(c, ".dbf") end)
 
         if !is_nil(shp) && !is_nil(dbf) do
-          stream = zip(shp, dbf, size)
-          [{Path.basename(root), prj, stream}]
+          [{
+            root,
+            List.to_string(shp),
+            List.to_string(dbf),
+            prj && List.to_string(prj)
+          }]
         else
           []
         end
       end)
+      |> case do
+        [] -> [] # we didn't find any layers
+        layers -> # we found at least one layer, need to unzip
+          File.mkdir_p!(cwd)
+          {:ok, unzipped_files} = unzip(path, cwd, Keyword.get(opts, :unzip_shell, true))
+
+          Enum.map(layers, fn {root, shp, dbf, prj} ->
+            prj_contents = projection(nil && Enum.find(files, &String.ends_with?(&1, prj)))
+
+            # zip up the unzipped shp and dbf components
+            stream = zip(
+              Enum.find(unzipped_files, &String.ends_with?(&1, shp)),
+              Enum.find(unzipped_files, &String.ends_with?(&1, dbf)),
+              size
+            )
+
+            {Path.basename(root), prj_contents, stream}
+          end)
+      end
     end
   end
 
