@@ -100,7 +100,7 @@ defmodule Exshape do
           {:ok, unzipped_files} = unzip(path, cwd, Keyword.get(opts, :unzip_shell, true))
 
           Enum.map(layers, fn {root, shp, dbf, prj} ->
-            prj_contents = projection(nil && Enum.find(files, &String.ends_with?(&1, prj)))
+            prj_contents = projection(prj && Enum.find(unzipped_files, &String.ends_with?(&1, prj)))
 
             # zip up the unzipped shp and dbf components
             stream = zip(
