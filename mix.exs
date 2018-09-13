@@ -2,14 +2,16 @@ defmodule Exshape.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :exshape,
-     version: "2.1.1",
-     elixir: "~> 1.5",
-     description: description(),
-     package: package(),
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     deps: deps()]
+    [
+      app: :exshape,
+      version: "2.1.1",
+      elixir: "~> 1.5",
+      description: description(),
+      package: package(),
+      build_embedded: Mix.env() == :prod,
+      start_permanent: Mix.env() == :prod,
+      deps: deps()
+    ]
   end
 
   defp description do
@@ -45,7 +47,7 @@ defmodule Exshape.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [
-      {:uuid, "~> 1.1"},
+      {:elixir_uuid, "~> 1.2"},
       {:ex_doc, ">= 0.0.0", only: :dev},
       {:poison, "~> 3.1", only: :test}
     ]
