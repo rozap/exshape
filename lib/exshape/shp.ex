@@ -6,8 +6,11 @@ defmodule Exshape.Shp do
       to_read: nil,
       item: nil,
       part_index: 0,
-      measures: []
+      measures: [],
+      z_values: []
   end
+
+  @magic_nodata_num :math.pow(10, 38) * -1
 
   defmodule Bbox do
     defstruct [:xmin, :xmax, :ymin, :ymax, :zmin, :zmax, :mmin, :mmax]
@@ -25,11 +28,19 @@ defmodule Exshape.Shp do
     defstruct [:x, :y, :m]
   end
 
+  defmodule PointZ do
+    defstruct [:x, :y, :m, :z]
+  end
+
   defmodule Multipoint do
     defstruct points: [], bbox: nil
   end
 
   defmodule MultipointM do
+    defstruct points: [], bbox: nil
+  end
+
+  defmodule MultipointZ do
     defstruct points: [], bbox: nil
   end
 
@@ -41,10 +52,17 @@ defmodule Exshape.Shp do
     defstruct points: [], bbox: nil, parts: []
   end
 
+  defmodule PolylineZ do
+    defstruct points: [], bbox: nil, parts: []
+  end
+
   defmodule PolygonM do
     defstruct points: [], bbox: nil, parts: []
   end
 
+  defmodule PolygonZ do
+    defstruct points: [], bbox: nil, parts: []
+  end
 
   defmodule Polygon do
     defstruct points: [], bbox: nil, parts: []
@@ -60,10 +78,10 @@ defmodule Exshape.Shp do
   {3, :polyline, Polyline},
   {5, :polygon, Polygon},
   {8, :multipoint, Multipoint},
-  {11, :pointz, nil}, #Not implemented
-  {13, :polylinez, nil},
-  {15, :polygonz, nil},
-  {18, :multipointz, nil},
+  {11, :pointz, PointZ}, #Not implemented
+  {13, :polylinez, PolylineZ},
+  {15, :polygonz, PolygonZ},
+  {18, :multipointz, MultipointZ},
   {21, :pointm, PointM},
   {23, :polylinem, PolylineM},
   {25, :polygonm, PolygonM},
@@ -81,36 +99,71 @@ defmodule Exshape.Shp do
     %{p | points: points}
   end
 
+  defp zip_zvals(p, s) do
+    points = p.points
+    |> Enum.zip(s.z_values)
+    |> Enum.map(fn {pm, z} -> %{pm | z: z} end)
+
+    %{p | points: points}
+  end
+
   defp emit(s, %Polygon{} = p) do
-    %{s | emit: [%{p | points: nest_polygon(p)} | s.emit]}
+    %{s | mode: :record_header, emit: [%{p | points: nest_polygon(p)} | s.emit]}
   end
 
   defp emit(s, %Polyline{} = p) do
-    %{s | emit: [%{p | points: unflatten_parts(p)} | s.emit]}
+    %{s | mode: :record_header, emit: [%{p | points: unflatten_parts(p)} | s.emit]}
   end
 
   defp emit(s, %Multipoint{} = mp) do
-    %{s | emit: [reverse(mp, :points) | s.emit]}
+    %{s | mode: :record_header, emit: [reverse(mp, :points) | s.emit]}
   end
 
   defp emit(s, %MultipointM{} = mp) do
     mp = zip_measures(mp, s) |> reverse(:points)
-    %{s | emit: [mp | s.emit]}
+    %{s | mode: :record_header, emit: [mp | s.emit]}
   end
 
   defp emit(s, %PolylineM{} = pm) do
     p = zip_measures(pm, s)
     polylinem = %{p | points: unflatten_parts(p)}
-    %{s | emit: [polylinem | s.emit]}
+    %{s | mode: :record_header, emit: [polylinem | s.emit]}
   end
 
   defp emit(s, %PolygonM{} = pm) do
     p = zip_measures(pm, s)
     polylinem = %{p | points: nest_polygon(p)}
-    %{s | emit: [polylinem | s.emit]}
+    %{s | mode: :record_header, emit: [polylinem | s.emit]}
   end
 
-  defp emit(s, thing), do: %{s | emit: [thing | s.emit], item: nil}
+  defp emit(s, %MultipointZ{} = mp) do
+    mp = mp
+    |> zip_measures(s)
+    |> zip_zvals(s)
+    |> reverse(:points)
+
+    %{s | mode: :record_header, emit: [mp | s.emit]}
+  end
+
+  defp emit(s, %PolylineZ{} = pz) do
+    p = pz
+    |> zip_measures(s)
+    |> zip_zvals(s)
+
+    polylinez = %{p | points: unflatten_parts(p)}
+    %{s | mode: :record_header, emit: [polylinez | s.emit]}
+  end
+
+  defp emit(s, %PolygonZ{} = pz) do
+    p = pz
+    |> zip_measures(s)
+    |> zip_zvals(s)
+
+    polygonz = %{p | points: nest_polygon(p)}
+    %{s | mode: :record_header, emit: [polygonz | s.emit]}
+  end
+
+  defp emit(s, thing), do: %{s | mode: :record_header, emit: [thing | s.emit], item: nil}
 
 
   defp mode(s, m), do: %{s | mode: m}
@@ -126,7 +179,13 @@ defmodule Exshape.Shp do
     Map.put(item, key, Enum.reverse(Map.get(item, key)))
   end
 
+  defp nodata_to_nil(n) when n < @magic_nodata_num, do: nil
+  defp nodata_to_nil(n), do: n
+
   defp put_measure(s, m), do: %{s | measures: [m | s.measures]}
+
+  defp put_z(s, z), do: %{s | z_values: [z | s.z_values]}
+
 
   defp unflatten_parts(item) do
     parts_map = MapSet.new(item.parts)
@@ -206,10 +265,20 @@ defmodule Exshape.Shp do
     ymin::little-float-size(64),
     xmax::little-float-size(64),
     ymax::little-float-size(64)
-  >>) do
-    %Bbox{xmin: xmin, ymin: ymin, xmax: xmax, ymax: ymax}
+  >>, zmin, zmax) do
+    %Bbox{xmin: xmin, ymin: ymin, xmax: xmax, ymax: ymax, zmin: zmin, zmax: zmax}
   end
-  defp extract_bbox(_), do: %Bbox{}
+  defp extract_bbox(_, _, _), do: %Bbox{}
+  defp extract_bbox(v), do: extract_bbox(v, nil, nil)
+
+  defp update_bbox_zrange(bbox, <<
+    zmin::little-float-size(64),
+    zmax::little-float-size(64),
+  >>) do
+    %{bbox | zmin: zmin, zmax: zmax}
+  end
+  defp update_bbox_zrange(bbox, _), do: bbox
+
 
   defp update_bbox_measures(bbox, <<
     mmin::little-float-size(64),
@@ -253,7 +322,6 @@ defmodule Exshape.Shp do
 
     s
     |> emit(%Header{bbox: box, shape_type: st})
-    |> mode(:record_header)
     |> shape_type(st)
     |> do_read(rest)
   end
@@ -274,7 +342,6 @@ defmodule Exshape.Shp do
   >>) do
     s
     |> emit(nil)
-    |> mode(:record_header)
     |> do_read(rest)
   end
 
@@ -290,7 +357,6 @@ defmodule Exshape.Shp do
   >>) do
     s
     |> emit(%Point{x: x, y: y})
-    |> mode(:record_header)
     |> do_read(rest)
   end
 
@@ -312,7 +378,6 @@ defmodule Exshape.Shp do
 
   defp do_read(%State{mode: :multipoint, to_read: 0} = s, rest) do
     s
-    |> mode(:record_header)
     |> emit_item
     |> do_read(rest)
   end
@@ -347,7 +412,6 @@ defmodule Exshape.Shp do
 
   defp do_read(%State{mode: :polyline, to_read: 0} = s, rest) do
     s
-    |> mode(:record_header)
     |> emit(s.item)
     |> do_read(rest)
   end
@@ -382,7 +446,6 @@ defmodule Exshape.Shp do
 
   defp do_read(%State{mode: :polygon, to_read: 0} = s, rest) do
     s
-    |> mode(:record_header)
     |> emit(s.item)
     |> do_read(rest)
   end
@@ -410,7 +473,22 @@ defmodule Exshape.Shp do
   >>) do
     s
     |> emit(%PointM{x: x, y: y, m: m})
-    |> mode(:record_header)
+    |> do_read(rest)
+  end
+
+  ##
+  # PointZ
+  #
+  defp do_read(%State{mode: {:record, _, _}, shape_type: :pointz} = s, <<
+    11::little-integer-size(32),
+    x::little-float-size(64),
+    y::little-float-size(64),
+    z::little-float-size(64),
+    m::little-float-size(64),
+    rest::binary
+  >>) do
+    s
+    |> emit(%PointZ{x: x, y: y, m: nodata_to_nil(m), z: z})
     |> do_read(rest)
   end
 
@@ -431,18 +509,9 @@ defmodule Exshape.Shp do
   end
 
 
-
-  defp do_read(%State{mode: :multipointm, to_read: 0} = s, <<
-    bbox_measures::binary-size(16),
-    rest::binary
-  >>) do
-    num_points = length(s.item.points)
-    bbox = update_bbox_measures(s.item.bbox, bbox_measures)
-
+  defp do_read(%State{mode: :multipointm, to_read: 0} = s, rest) do
     s
-    |> mode(:measures)
-    |> repeatedly(num_points)
-    |> item(%{s.item | bbox: bbox})
+    |> mode(:m)
     |> do_read(rest)
   end
 
@@ -453,6 +522,40 @@ defmodule Exshape.Shp do
   >>) do
     s
     |> prepend(%PointM{x: x, y: y}, :points)
+    |> consume_item
+    |> do_read(rest)
+  end
+
+  ##
+  # MultipointZ
+  #
+  defp do_read(%State{mode: {:record, _, _}, shape_type: :multipointz} = s, <<
+    18::little-integer-size(32),
+    bbox::binary-size(32),
+    num_points::little-integer-size(32),
+    rest::binary
+  >>) do
+    s
+    |> repeatedly(num_points)
+    |> item(%MultipointZ{bbox: extract_bbox(bbox)})
+    |> mode(:multipointz)
+    |> do_read(rest)
+  end
+
+
+  defp do_read(%State{mode: :multipointz, to_read: 0} = s, rest) do
+    s
+    |> mode(:z)
+    |> do_read(rest)
+  end
+
+  defp do_read(%State{mode: :multipointz, shape_type: :multipointz} = s, <<
+    x::little-float-size(64),
+    y::little-float-size(64),
+    rest::binary
+  >>) do
+    s
+    |> prepend(%PointZ{x: x, y: y}, :points)
     |> consume_item
     |> do_read(rest)
   end
@@ -483,17 +586,9 @@ defmodule Exshape.Shp do
     |> do_read(rest)
   end
 
-  defp do_read(%State{mode: mode, to_read: 0} = s, <<
-    bbox_measures::binary-size(16),
-    rest::binary
-  >>) when mode in @poly_m do
-    num_points = length(s.item.points)
-    item = %{s.item | bbox: update_bbox_measures(s.item.bbox, bbox_measures)}
-
+  defp do_read(%State{mode: mode, to_read: 0} = s, rest) when mode in @poly_m do
     s
-    |> mode(:measures)
-    |> item(item)
-    |> repeatedly(num_points)
+    |> mode(:m)
     |> do_read(rest)
   end
 
@@ -504,6 +599,49 @@ defmodule Exshape.Shp do
   >>) when st in @poly_m  do
     s
     |> prepend(%PointM{x: x, y: y}, :points)
+    |> consume_item
+    |> do_read(rest)
+  end
+
+  ##
+  # PolylineZ and PolygonZ are the same
+  @poly_z [:polylinez, :polygonz]
+  @poly_z_t %{
+    polylinez: PolylineZ,
+    polygonz: PolygonZ
+  }
+
+  defp do_read(%State{mode: {:record, _, _}, shape_type: st} = s, <<
+    _::little-integer-size(32),
+    bbox::binary-size(32),
+    num_parts::little-integer-size(32),
+    num_points::little-integer-size(32),
+    rest::binary
+  >>) when st in @poly_z do
+
+    t = Map.get(@poly_z_t, st)
+    item = struct(t, %{bbox: extract_bbox(bbox)})
+
+    s
+    |> repeatedly(num_parts)
+    |> item(item)
+    |> mode({:parts, {st, num_points}})
+    |> do_read(rest)
+  end
+
+  defp do_read(%State{mode: mode, to_read: 0} = s, rest) when mode in @poly_z do
+    s
+    |> mode(:z)
+    |> do_read(rest)
+  end
+
+  defp do_read(%State{mode: st, shape_type: st} = s, <<
+    x::little-float-size(64),
+    y::little-float-size(64),
+    rest::binary
+  >>) when st in @poly_z  do
+    s
+    |> prepend(%PointZ{x: x, y: y}, :points)
     |> consume_item
     |> do_read(rest)
   end
@@ -531,10 +669,22 @@ defmodule Exshape.Shp do
   ##
   # Measures
   #
-  defp do_read(%State{mode: :measures, to_read: 0} = s, rest) do
+  defp do_read(%State{mode: :m} = s, <<
+    bbox_measures::binary-size(16),
+    rest::binary
+  >>) do
+    num_points = length(s.item.points)
+    bbox = update_bbox_measures(s.item.bbox, bbox_measures)
 
     s
-    |> mode(:record_header)
+    |> mode(:measures)
+    |> repeatedly(num_points)
+    |> item(%{s.item | bbox: bbox})
+    |> do_read(rest)
+  end
+
+  defp do_read(%State{mode: :measures, to_read: 0} = s, rest) do
+    s
     |> emit(s.item)
     |> do_read(rest)
   end
@@ -544,10 +694,49 @@ defmodule Exshape.Shp do
     rest::binary
   >>) do
     s
-    |> put_measure(m)
+    |> put_measure(nodata_to_nil(m))
     |> consume_item
     |> do_read(rest)
   end
+
+  ##
+  # Z Values
+  #
+
+  defp do_read(%State{mode: :z} = s, <<
+    z_range::binary-size(16),
+    rest::binary
+  >>) do
+    num_points = length(s.item.points)
+    bbox = update_bbox_zrange(s.item.bbox, z_range)
+    s
+    |> mode(:z_values)
+    |> repeatedly(num_points)
+    |> item(%{s.item | bbox: bbox})
+    |> do_read(rest)
+  end
+
+  defp do_read(%State{mode: :z_values, to_read: 0} = s, rest) do
+    num_points = length(s.item.points)
+
+    s
+    |> mode(:m)
+    |> repeatedly(num_points)
+    |> do_read(rest)
+  end
+
+  defp do_read(%State{mode: :z_values} = s, <<
+    z::little-float-size(64),
+    rest::binary
+  >>) do
+    s
+    |> put_z(z)
+    |> consume_item
+    |> do_read(rest)
+  end
+
+
+
   defp do_read(%State{} = s, <<rest::binary>>) do
     {rest, s}
   end
