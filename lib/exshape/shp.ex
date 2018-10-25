@@ -78,7 +78,7 @@ defmodule Exshape.Shp do
   {3, :polyline, Polyline},
   {5, :polygon, Polygon},
   {8, :multipoint, Multipoint},
-  {11, :pointz, PointZ}, #Not implemented
+  {11, :pointz, PointZ},
   {13, :polylinez, PolylineZ},
   {15, :polygonz, PolygonZ},
   {18, :multipointz, MultipointZ},
