@@ -83,14 +83,23 @@ defmodule Exshape.Dbf do
   defp munge(:numeric, datum) do
     case trim_leading(datum) do
       "" -> nil
-      t  ->
-        case Integer.parse(t) do
-          {i, _} -> i
-          :error -> nil
-        end
+      t  -> to_numlike(t)
+
     end
   end
   defp munge(:memo, d), do: d
+
+  defp to_numlike(bin) do
+    case Integer.parse(bin) do
+      {i, ""} -> i
+      {_, _} ->
+        case Float.parse(bin) do
+          {f, ""} -> f
+          _ -> nil
+        end
+      :error -> nil
+    end
+  end
 
   @types [
     {"C", :character},
