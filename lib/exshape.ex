@@ -16,27 +16,13 @@ defmodule Exshape do
   defp zip(s, d, size), do: Stream.zip(open_shp(s, size), open_dbf(d, size))
 
   defp projection(nil), do: nil
-  defp projection(prj), do: File.read!(prj)
-
-  defp ls_r(cwd) do
-    File.ls!(cwd)
-    |> Enum.map(&Path.join([cwd, &1]))
-    |> Enum.flat_map(fn
-      file -> # We'll consider it
-        if File.regular?(file) do
-          # File
-          [file]
-        else
-          # Dir
-          ls_r(file)
-        end
-    end)
+  defp projection(prj) do
+    File.read!(prj)
   end
 
-  defp unzip(path, cwd, false), do: :zip.extract(to_charlist(path), cwd: cwd)
-  defp unzip(path, cwd, true) do
+  defp unzip!(path, cwd, false), do: :zip.extract(to_charlist(path), cwd: cwd)
+  defp unzip!(path, cwd, true) do
     {_, 0} = System.cmd("unzip", [path, "-d", to_string(cwd)])
-    {:ok, ls_r(cwd)}
   end
 
   def keep_file?({:zip_file, charlist, _, _, _, _}) do
@@ -101,15 +87,15 @@ defmodule Exshape do
         [] -> [] # we didn't find any layers
         layers -> # we found at least one layer, need to unzip
           File.mkdir_p!(cwd)
-          {:ok, unzipped_files} = unzip(path, cwd, Keyword.get(opts, :unzip_shell, true))
+          unzip!(path, cwd, Keyword.get(opts, :unzip_shell, true))
 
           Enum.map(layers, fn {root, shp, dbf, prj} ->
-            prj_contents = projection(prj && Enum.find(unzipped_files, &String.ends_with?(&1, prj)))
+            prj_contents = projection(prj && Path.join(cwd, prj))
 
             # zip up the unzipped shp and dbf components
             stream = zip(
-              Enum.find(unzipped_files, &String.ends_with?(&1, shp)),
-              Enum.find(unzipped_files, &String.ends_with?(&1, dbf)),
+              Path.join(cwd, shp),
+              Path.join(cwd, dbf),
               size
             )
 
