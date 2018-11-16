@@ -22,8 +22,6 @@ defmodule Exshape do
     File.ls!(cwd)
     |> Enum.map(&Path.join([cwd, &1]))
     |> Enum.flat_map(fn
-      "__MACOSX" -> [] # Ignore OSX garbage
-      "." <> _ -> [] # Ignore hidden files
       file -> # We'll consider it
         if File.regular?(file) do
           # File
@@ -40,6 +38,12 @@ defmodule Exshape do
     {_, 0} = System.cmd("unzip", [path, "-d", to_string(cwd)])
     {:ok, ls_r(cwd)}
   end
+
+  def keep_file?({:zip_file, charlist, _, _, _, _}) do
+    filename = :binary.list_to_bin(charlist)
+    not String.starts_with?(filename, "__MACOSX") and not String.starts_with?(filename, ".")
+  end
+  def keep_file?(_), do: false
 
   @doc """
     Given a zip file path, unzip it and open streams for the underlying
@@ -74,7 +78,7 @@ defmodule Exshape do
 
     with {:ok, files} <- :zip.table(String.to_charlist(path)) do
       files
-      |> Enum.filter(fn {:zip_file, _filename, _, _, _, _} -> true; _ -> false end)
+      |> Enum.filter(&keep_file?/1)
       |> Enum.map(fn {:zip_file, filename, _, _, _, _} -> filename end)
       |> Enum.group_by(&Path.rootname/1)
       |> Enum.flat_map(fn {root, components} ->
