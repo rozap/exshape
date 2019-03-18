@@ -107,6 +107,10 @@ defmodule Exshape.Shp do
     %{p | points: points}
   end
 
+  defp reset_unzipped(s) do
+    %{s | measures: [], z_values: []}
+  end
+
   defp emit(s, %Polygon{} = p) do
     %{s | mode: :record_header, emit: [%{p | points: nest_polygon(p)} | s.emit]}
   end
@@ -121,19 +125,19 @@ defmodule Exshape.Shp do
 
   defp emit(s, %MultipointM{} = mp) do
     mp = zip_measures(mp, s) |> reverse(:points)
-    %{s | mode: :record_header, emit: [mp | s.emit]}
+    %{s | mode: :record_header, emit: [mp | s.emit]} |> reset_unzipped
   end
 
   defp emit(s, %PolylineM{} = pm) do
     p = zip_measures(pm, s)
     polylinem = %{p | points: unflatten_parts(p)}
-    %{s | mode: :record_header, emit: [polylinem | s.emit]}
+    %{s | mode: :record_header, emit: [polylinem | s.emit]} |> reset_unzipped
   end
 
   defp emit(s, %PolygonM{} = pm) do
     p = zip_measures(pm, s)
     polylinem = %{p | points: nest_polygon(p)}
-    %{s | mode: :record_header, emit: [polylinem | s.emit]}
+    %{s | mode: :record_header, emit: [polylinem | s.emit]} |> reset_unzipped
   end
 
   defp emit(s, %MultipointZ{} = mp) do
@@ -142,7 +146,7 @@ defmodule Exshape.Shp do
     |> zip_zvals(s)
     |> reverse(:points)
 
-    %{s | mode: :record_header, emit: [mp | s.emit]}
+    %{s | mode: :record_header, emit: [mp | s.emit]} |> reset_unzipped
   end
 
   defp emit(s, %PolylineZ{} = pz) do
@@ -151,7 +155,7 @@ defmodule Exshape.Shp do
     |> zip_zvals(s)
 
     polylinez = %{p | points: unflatten_parts(p)}
-    %{s | mode: :record_header, emit: [polylinez | s.emit]}
+    %{s | mode: :record_header, emit: [polylinez | s.emit]} |> reset_unzipped
   end
 
   defp emit(s, %PolygonZ{} = pz) do
@@ -160,7 +164,7 @@ defmodule Exshape.Shp do
     |> zip_zvals(s)
 
     polygonz = %{p | points: nest_polygon(p)}
-    %{s | mode: :record_header, emit: [polygonz | s.emit]}
+    %{s | mode: :record_header, emit: [polygonz | s.emit]} |> reset_unzipped
   end
 
   defp emit(s, thing), do: %{s | mode: :record_header, emit: [thing | s.emit], item: nil}
