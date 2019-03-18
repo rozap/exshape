@@ -6,19 +6,12 @@ defmodule Exshape do
   """
   alias Exshape.{Dbf, Shp}
 
-  defp open_shp(c, size), do: File.stream!(c, [], size) |> Shp.read
-  defp open_dbf(c, size), do: File.stream!(c, [], size) |> Dbf.read
+  defp open_file(c, size), do: File.stream!(c, [], size)
 
-
-  defp zip(nil, nil, _), do: []
-  defp zip(nil, d, size), do: open_dbf(d, size)
-  defp zip(s, nil, size), do: open_shp(s, size)
-  defp zip(s, d, size), do: Stream.zip(open_shp(s, size), open_dbf(d, size))
-
-  defp projection(nil), do: nil
-  defp projection(prj) do
-    File.read!(prj)
-  end
+  defp zip(nil, nil), do: []
+  defp zip(nil, d), do: Dbf.read(d)
+  defp zip(s, nil), do: Shp.read(s)
+  defp zip(s, d), do: Stream.zip(Shp.read(s), Dbf.read(d))
 
   defp unzip!(path, cwd, false), do: :zip.extract(to_charlist(path), cwd: cwd)
   defp unzip!(path, cwd, true) do
@@ -30,6 +23,18 @@ defmodule Exshape do
     not String.starts_with?(filename, "__MACOSX") and not String.starts_with?(filename, ".")
   end
   def keep_file?(_), do: false
+
+  defmodule Filesystem do
+    @moduledoc """
+      An abstraction over a filesystem.  The `list` field contains
+      a function that returns a list of filenames, and the `stream`
+      function takes one of those filenames and returns a stream of
+      binaries.
+    """
+
+    @enforce_keys [:list, :stream]
+    defstruct @enforce_keys
+  end
 
   @doc """
     Given a zip file path, unzip it and open streams for the underlying
@@ -63,46 +68,53 @@ defmodule Exshape do
     size = Keyword.get(opts, :read_size, 1024 * 1024)
 
     with {:ok, files} <- :zip.table(String.to_charlist(path)) do
-      files
-      |> Enum.filter(&keep_file?/1)
-      |> Enum.map(fn {:zip_file, filename, _, _, _, _} -> filename end)
-      |> Enum.group_by(&Path.rootname/1)
-      |> Enum.flat_map(fn {root, components} ->
-        prj = Enum.find(components, fn c -> extension_equals(c, ".prj") end)
-        shp = Enum.find(components, fn c -> extension_equals(c, ".shp") end)
-        dbf = Enum.find(components, fn c -> extension_equals(c, ".dbf") end)
-
-        if !is_nil(shp) && !is_nil(dbf) do
-          [{
-            root,
-            List.to_string(shp),
-            List.to_string(dbf),
-            prj && List.to_string(prj)
-          }]
-        else
-          []
-        end
-      end)
-      |> case do
-        [] -> [] # we didn't find any layers
-        layers -> # we found at least one layer, need to unzip
-          File.mkdir_p!(cwd)
-          unzip!(path, cwd, Keyword.get(opts, :unzip_shell, true))
-
-          Enum.map(layers, fn {root, shp, dbf, prj} ->
-            prj_contents = projection(prj && Path.join(cwd, prj))
-
-            # zip up the unzipped shp and dbf components
-            stream = zip(
-              Path.join(cwd, shp),
-              Path.join(cwd, dbf),
-              size
-            )
-
-            {Path.basename(root), prj_contents, stream}
-          end)
-      end
+      from_filesystem(
+        %Filesystem{
+          list: fn -> files end,
+          stream: fn file ->
+            if !File.exists?(Path.join(cwd, file)) do
+              File.mkdir_p!(cwd)
+              unzip!(path, cwd, Keyword.get(opts, :unzip_shell, true))
+            end
+            open_file(Path.join(cwd, file), size)
+          end
+        })
     end
+  end
+
+  @spec from_filesystem(Filesystem.t) :: [layer]
+  def from_filesystem(fs) do
+    fs.list.()
+    |> Enum.filter(&keep_file?/1)
+    |> Enum.map(fn {:zip_file, filename, _, _, _, _} -> filename end)
+    |> Enum.group_by(&Path.rootname/1)
+    |> Enum.flat_map(fn {root, components} ->
+      prj = Enum.find(components, fn c -> extension_equals(c, ".prj") end)
+      shp = Enum.find(components, fn c -> extension_equals(c, ".shp") end)
+      dbf = Enum.find(components, fn c -> extension_equals(c, ".dbf") end)
+
+      if !is_nil(shp) && !is_nil(dbf) do
+        [{
+          root,
+          List.to_string(shp),
+          List.to_string(dbf),
+          prj && List.to_string(prj)
+          }]
+      else
+        []
+      end
+    end)
+    |> Enum.map(fn {root, shp, dbf, prj} ->
+      prj_contents = prj && (fs.stream.(prj) |> Enum.join)
+
+      # zip up the unzipped shp and dbf components
+      stream = zip(
+        shp && fs.stream.(shp),
+        dbf && fs.stream.(dbf)
+      )
+
+      {Path.basename(root), prj_contents, stream}
+    end)
   end
 
   defp extension_equals(path, wanted_ext) do
