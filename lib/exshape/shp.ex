@@ -236,7 +236,7 @@ defmodule Exshape.Shp do
     if ring_contains?(first_ring, point) do
       [poly ++ [hole] | rest_polys]
     else
-      nest_hole(hole, rest_polys)
+      [poly | nest_hole(hole, rest_polys)]
     end
   end
 

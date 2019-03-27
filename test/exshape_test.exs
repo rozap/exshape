@@ -105,8 +105,14 @@ defmodule ExshapeTest do
     assert Enum.into(stream, []) |> length == 50
   end
 
-  test "thing?" do
+  test "speed enforcement" do
     [{_, _, stream}] = zip("speed_enforcement") |> Exshape.from_zip()
     assert Enum.into(stream, []) |> length == 1203
+  end
+
+  test "row181" do
+    [{_, _, stream}] = zip("row_181") |> Exshape.from_zip()
+    [_, {shape, _}] = Enum.into(stream, [])
+    assert (shape.points |> List.flatten |> length) == 174045
   end
 end
