@@ -22,7 +22,7 @@ defmodule Exshape.Dbf do
   defp mode(s, m), do: %{s | mode: m}
   defp header(s, u), do: %{s | header: struct(s.header, u)}
   defp emit(s, %Header{} = header), do: %{s | emit: [%{header | columns: Enum.reverse(header.columns)} | s.emit], item: []}
-  defp emit(s, thing), do: %{s | emit: [munge_row(s.header.columns, thing) | s.emit], item: []}
+  defp emit(s, row), do: %{s | emit: [row | s.emit], item: []}
   defp add_column(s, c), do: %{s | header: %{s.header | columns: [c | s.header.columns]}}
 
 
@@ -37,11 +37,6 @@ defmodule Exshape.Dbf do
 
   defp trim_leading(" " <> s), do: trim_leading(s)
   defp trim_leading(s), do: s
-
-  defp munge_row(columns, row) do
-    Enum.zip(columns, row)
-    |> Enum.map(fn {c, datum} -> munge(c.field_type, datum) end)
-  end
 
   defp munge(:character, datum) do
     if String.valid?(datum) do
@@ -92,10 +87,11 @@ defmodule Exshape.Dbf do
   defp to_numlike(bin) do
     case Integer.parse(bin) do
       {i, ""} -> i
-      {_, _} ->
+      {int, leftovers} ->
         case Float.parse(bin) do
-          {f, ""} -> f
-          _ -> nil
+          {_, ^leftovers} -> int
+          {f, _} -> f
+          :error -> nil
         end
       :error -> nil
     end
@@ -114,11 +110,11 @@ defmodule Exshape.Dbf do
   end)
 
   defp next_column(%{mode: {:row, _, [c | rest]}} = s) do
-    mode(s, {:row, c.field_length, rest})
+    mode(s, {:row, c, rest})
   end
   defp next_column(s) do
     [c | rest] = s.header.columns
-    s = mode(s, {:row, c.field_length, rest})
+    s = mode(s, {:row, c, rest})
     case s.item do
       [] -> s
       _ ->
@@ -205,11 +201,11 @@ defmodule Exshape.Dbf do
     |> do_read(rest)
   end
 
-  defp do_read(%State{mode: {:row, len, _}} = s, bin) do
+  defp do_read(%State{mode: {:row, %Column{field_length: len} = c, _}} = s, bin) do
     case bin do
       <<value::binary-size(len), rest::binary>> ->
         s
-        |> put_datum(value)
+        |> put_datum(munge(c.field_type, value))
         |> next_column()
         |> do_read(rest)
       _ ->
