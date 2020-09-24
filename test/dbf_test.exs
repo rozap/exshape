@@ -46,4 +46,13 @@ defmodule DbfTest do
     |> Enum.into([])
     |> length == 35
   end
+
+
+  test "with padding on numeric fields" do
+    [_header, [numeric_cell]] = fixture("with_number_padding.dbf")
+    |> Dbf.read
+    |> Enum.into([])
+
+    assert numeric_cell == 13
+  end
 end
