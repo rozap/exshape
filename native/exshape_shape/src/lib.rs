@@ -55,15 +55,15 @@ fn process<'a>(polys: &mut Vec<Poly<'a>>, hole: Ring<'a>, contain: fn(&Ring<'a>,
             // in the original, this is recursive, but we'll do it
             // iteratively.  What we want to do is find the first poly
             // which contains the first point of the ring and push the
-            // hole onto it.  If there is no such poly, just make a
-            // new one at the end for the hole to live in.
+            // hole onto it.  If it doesn't fit in any poly, just smash
+            // it onlo the last.
             let pt = hole.first_point();
             match polys.iter_mut().find(|poly| contain(poly.first_ring(), pt)) {
                 Some(poly) => {
                     poly.push(hole);
                 }
                 None => {
-                    polys.push(Poly::from_ring(hole));
+                    polys.last_mut().unwrap().push(hole);
                 }
             }
         }
