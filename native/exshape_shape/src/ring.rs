@@ -197,27 +197,37 @@ mod test {
         }
     }
 
+    fn contains(ring: &Ring, pt: Point) {
+        assert!(ring.contains(&pt));
+        assert!(ring.contains_unsliced(&pt));
+    }
+
+    fn doesnt_contain(ring: &Ring, pt: Point) {
+        assert!(!ring.contains(&pt));
+        assert!(!ring.contains_unsliced(&pt));
+    }
+
     #[test]
     fn basic_sanity_check() {
         let sq = unit_square();
-        assert!(sq.contains(&Point { x: 0.0, y: 0.0 }));
-        assert!(!sq.contains(&Point { x: 10.0, y: 0.0 }));
-        assert!(!sq.contains(&Point { x: -10.0, y: 0.0 }));
-        assert!(!sq.contains(&Point { x: 0.0, y: 10.0 }));
-        assert!(!sq.contains(&Point { x: 0.0, y: -10.0 }));
+        contains(&sq, Point { x: 0.0, y: 0.0 });
+        doesnt_contain(&sq, Point { x: 10.0, y: 0.0 });
+        doesnt_contain(&sq, Point { x: -10.0, y: 0.0 });
+        doesnt_contain(&sq, Point { x: 0.0, y: 10.0 });
+        doesnt_contain(&sq, Point { x: 0.0, y: -10.0 });
     }
 
     #[test]
     fn more_complex_sanity_check() {
         let shape = u_shape();
-        assert!(shape.contains(&Point { x: -0.45, y: 0.0 }));
-        assert!(shape.contains(&Point { x: 0.45, y: 0.0 }));
-        assert!(shape.contains(&Point { x: 0.0, y: -0.45 }));
-        assert!(!shape.contains(&Point { x: 0.0, y: 0.45 }));
-        assert!(!shape.contains(&Point { x: 0.0, y: 0.0 }));
-        assert!(!shape.contains(&Point { x: 10.0, y: 0.0 }));
-        assert!(!shape.contains(&Point { x: -10.0, y: 0.0 }));
-        assert!(!shape.contains(&Point { x: 0.0, y: 10.0 }));
-        assert!(!shape.contains(&Point { x: 0.0, y: -10.0 }));
+        contains(&shape, Point { x: -0.45, y: 0.0 });
+        contains(&shape, Point { x: 0.45, y: 0.0 });
+        contains(&shape, Point { x: 0.0, y: -0.45 });
+        doesnt_contain(&shape, Point { x: 0.0, y: 0.45 });
+        doesnt_contain(&shape, Point { x: 0.0, y: 0.0 });
+        doesnt_contain(&shape, Point { x: 10.0, y: 0.0 });
+        doesnt_contain(&shape, Point { x: -10.0, y: 0.0 });
+        doesnt_contain(&shape, Point { x: 0.0, y: 10.0 });
+        doesnt_contain(&shape, Point { x: 0.0, y: -10.0 });
     }
 }
