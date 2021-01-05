@@ -769,7 +769,7 @@ defmodule Exshape.Shp do
     ```
   """
   def read(byte_stream, opts \\ []) do
-    native = Keyword.get(opts, :native, false)
+    native = Keyword.get(opts, :native, true)
 
     state = %State{
       nest_holes: if(native, do: &native_nest_holes/2, else: &beam_nest_holes/2)
