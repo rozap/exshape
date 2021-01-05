@@ -1,0 +1,17 @@
+[package]
+name = "exshape_shape"
+version = "0.1.0"
+authors = []
+edition = "2018"
+
+[lib]
+name = "exshape_shape"
+path = "src/lib.rs"
+crate-type = ["dylib"]
+
+[dependencies]
+rustler = "0.21.1"
+rustler_codegen = "0.21.1"
+itertools = "0.10"
+derivative = "2.1"
+float_extras = "0.1"
