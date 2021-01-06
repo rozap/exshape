@@ -21,7 +21,7 @@ defmodule Exshape.Mixfile do
       []
     else
       [
-        exsoda_shape: [
+        exshape_shape: [
           path: "native/exshape_shape",
           mode: :release
         ]
