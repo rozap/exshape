@@ -24,6 +24,18 @@ pub struct Ring<'a> {
     slices: RefCell<Option<Slices>>
 }
 
+// The terms that we get from shapefiles will only ever be floats, but
+// that's annoying to write by hand in test code, so we'll accept
+// integers too.
+fn decode_floatish<'a>(term: Term<'a>) -> NifResult<f64> {
+    term.decode().or_else(|e| {
+        match e {
+            Error::BadArg => term.decode::<i64>().map(|i| i as f64),
+            other => Err(other)
+        }
+    })
+}
+
 impl <'a> Decoder<'a> for Ring<'a> {
     fn decode(term: Term<'a>) -> NifResult<Self> {
         // could define a Decoder for Point and just use Vec's Decoder
@@ -35,8 +47,8 @@ impl <'a> Decoder<'a> for Ring<'a> {
         let y = atoms::y().to_term(env);
         let points =
             term.decode::<ListIterator<'a>>()?.map(|pt| {
-                Ok(Point { x : pt.map_get(x)?.decode()?,
-                           y : pt.map_get(y)?.decode()? })
+                Ok(Point { x : decode_floatish(pt.map_get(x)?)?,
+                           y : decode_floatish(pt.map_get(y)?)? })
             }).collect::<NifResult<Vec<_>>>()?;
 
         if points.is_empty() {
@@ -62,6 +74,14 @@ impl <'a> Encoder for Ring<'a> {
 impl <'a> Ring<'a> {
     pub fn first_point(&self) -> &Point {
         &self.points[0] // guaranteed to exist because the decoder requires non-emptiness
+    }
+
+    pub fn is_clockwise(&self) -> bool {
+        let (_, area) =
+            self.points[1..].iter().fold((&self.points[0], 0.0), |(prev_pt, s), pt| {
+                (pt, s + (pt.x - prev_pt.x) * (pt.y + prev_pt.y))
+            });
+        area >= 0.0
     }
 
     fn slices(&self) -> Ref<Slices> {

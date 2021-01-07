@@ -10,6 +10,13 @@ defmodule ShpTest do
   }
   doctest Exshape
 
+  def nest_polygon(p) do
+    beam = Shp.beam_nest_polygon(p)
+    native = Shp.native_nest_polygon(p)
+    assert beam == native
+    beam
+  end
+
   describe "regular geoms" do
     test "can read points" do
       [_header | points] = fixture("point.shp")
@@ -304,7 +311,7 @@ defmodule ShpTest do
   describe "nesting" do
 
     test "can nest holes" do
-      assert Shp.nest_polygon(%Polygon{
+      assert nest_polygon(%Polygon{
         parts: [0, 5],
         points: Enum.reverse([
           %Point{x: 0, y: 4},
@@ -340,7 +347,7 @@ defmodule ShpTest do
     end
 
     test "appends a part to the polygon when the part is clockwise" do
-      assert Shp.nest_polygon(%Polygon{
+      assert nest_polygon(%Polygon{
         parts: [0, 5],
         points: Enum.reverse([
           %Point{x: 0, y: 4},
@@ -422,7 +429,7 @@ defmodule ShpTest do
     end
 
     test "can nest many holes" do
-      assert Shp.nest_polygon(%Polygon{
+      assert nest_polygon(%Polygon{
         parts: [0, 5, 10],
         points: Enum.reverse([
           %Point{x: 0, y: 5},
@@ -471,7 +478,7 @@ defmodule ShpTest do
     end
 
     test "can nest holes and rings" do
-      assert Shp.nest_polygon(%Polygon{
+      assert nest_polygon(%Polygon{
         parts: [0, 5, 10],
         points: Enum.reverse([
           %Point{x: 0, y: 5},

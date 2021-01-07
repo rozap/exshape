@@ -7,16 +7,18 @@ pub struct Poly<'a> {
 }
 
 impl <'a> Poly<'a> {
-    pub fn from_ring(ring: Ring<'a>) -> Self {
-        Self { rings: vec![ring] }
-    }
-
     pub fn first_ring(&self) -> &Ring<'a> {
         &self.rings[0]
     }
 
     pub fn push(&mut self, ring: Ring<'a>) {
         self.rings.push(ring)
+    }
+}
+
+impl <'a> From<Ring<'a>> for Poly<'a> {
+    fn from(ring: Ring<'a>) -> Self {
+        Self { rings: vec![ring] }
     }
 }
 
