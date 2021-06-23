@@ -8,10 +8,10 @@ defmodule Exshape do
 
   defp open_file(c, size), do: File.stream!(c, [], size)
 
-  defp zip(nil, nil), do: []
-  defp zip(nil, d), do: Dbf.read(d)
-  defp zip(s, nil), do: Shp.read(s)
-  defp zip(s, d), do: Stream.zip(Shp.read(s), Dbf.read(d))
+  defp zip(nil, nil, _), do: []
+  defp zip(nil, d, _), do: Dbf.read(d)
+  defp zip(s, nil, opts), do: Shp.read(s, opts)
+  defp zip(s, d, opts), do: Stream.zip(Shp.read(s, opts), Dbf.read(d))
 
   defp unzip!(path, cwd, false), do: :zip.extract(to_charlist(path), cwd: cwd)
   defp unzip!(path, cwd, true) do
@@ -78,12 +78,13 @@ defmodule Exshape do
             end
             open_file(Path.join(cwd, file), size)
           end
-        })
+        },
+        opts)
     end
   end
 
   @spec from_filesystem(Filesystem.t) :: [layer]
-  def from_filesystem(fs) do
+  def from_filesystem(fs, opts \\ []) do
     fs.list.()
     |> Enum.filter(&keep_file?/1)
     |> Enum.map(fn {:zip_file, filename, _, _, _, _} -> filename end)
@@ -110,7 +111,8 @@ defmodule Exshape do
       # zip up the unzipped shp and dbf components
       stream = zip(
         shp && fs.stream.(shp),
-        dbf && fs.stream.(dbf)
+        dbf && fs.stream.(dbf),
+        opts
       )
 
       {Path.basename(root), prj_contents, stream}

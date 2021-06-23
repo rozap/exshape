@@ -4,5 +4,6 @@ defmodule TestHelper do
   end
 
   def zip(name), do: "#{__DIR__}/fixtures/#{name}.zip"
+  def shp(name), do: "#{__DIR__}/fixtures/#{name}.shp"
 end
 ExUnit.start()

@@ -115,4 +115,28 @@ defmodule ExshapeTest do
     [_, {shape, _}] = Enum.into(stream, [])
     assert (shape.points |> List.flatten |> length) == 174045
   end
+
+  test "native and beam produce the same results" do
+    ["archive", "chicago_zoning", "co-parcels", "hoods", "howard-beach", "row_181", "seattle_basketball_points", "speed_enforcement", "zillow"]
+    |> Enum.each(fn path ->
+      [{_, _, beam_stream}] = zip(path) |> Exshape.from_zip(native: false)
+      beam = Enum.into(beam_stream, [])
+      [{_, _, native_stream}] = zip(path) |> Exshape.from_zip(native: true)
+      native = Enum.into(native_stream, [])
+      assert beam == native
+    end)
+
+    ["multipatch", "multipointm", "multipoint", "multipointz", "pointm", "point", "pointz", "polygonm", "polygon", "polygons", "polygonz", "polylinem", "polyline", "polylinez", "Neighborhoods/neighborhoods_orleans"]
+    |> Enum.each(fn path ->
+      beam = shp(path)
+      |> File.stream!([], 2048)
+      |> Exshape.Shp.read(native: false)
+      |> Enum.into([])
+      native = shp(path)
+      |> File.stream!([], 2048)
+      |> Exshape.Shp.read(native: true)
+      |> Enum.into([])
+      assert beam == native
+    end)
+  end
 end

@@ -1,5 +1,9 @@
 defmodule Exshape.Shp do
+  require Rustler
+  use Rustler, otp_app: :exshape, crate: :exshape_shape, mode: :release
+
   defmodule State do
+    @enforce_keys [:nest_polygon]
     defstruct mode: :header,
       shape_type: nil,
       emit: [],
@@ -7,7 +11,8 @@ defmodule Exshape.Shp do
       item: nil,
       part_index: 0,
       measures: [],
-      z_values: []
+      z_values: [],
+      nest_polygon: nil
   end
 
   @magic_nodata_num :math.pow(10, 38) * -1
@@ -111,8 +116,8 @@ defmodule Exshape.Shp do
     %{s | measures: [], z_values: []}
   end
 
-  defp emit(s, %Polygon{} = p) do
-    %{s | mode: :record_header, emit: [%{p | points: nest_polygon(p)} | s.emit]}
+  defp emit(%State{nest_polygon: nest_polygon} = s, %Polygon{} = p) do
+    %{s | mode: :record_header, emit: [%{p | points: nest_polygon.(p)} | s.emit]}
   end
 
   defp emit(s, %Polyline{} = p) do
@@ -134,9 +139,9 @@ defmodule Exshape.Shp do
     %{s | mode: :record_header, emit: [polylinem | s.emit]} |> reset_unzipped
   end
 
-  defp emit(s, %PolygonM{} = pm) do
+  defp emit(%State{nest_polygon: nest_polygon} = s, %PolygonM{} = pm) do
     p = zip_measures(pm, s)
-    polylinem = %{p | points: nest_polygon(p)}
+    polylinem = %{p | points: nest_polygon.(p)}
     %{s | mode: :record_header, emit: [polylinem | s.emit]} |> reset_unzipped
   end
 
@@ -158,12 +163,12 @@ defmodule Exshape.Shp do
     %{s | mode: :record_header, emit: [polylinez | s.emit]} |> reset_unzipped
   end
 
-  defp emit(s, %PolygonZ{} = pz) do
+  defp emit(%State{nest_polygon: nest_polygon} = s, %PolygonZ{} = pz) do
     p = pz
     |> zip_measures(s)
     |> zip_zvals(s)
 
-    polygonz = %{p | points: nest_polygon(p)}
+    polygonz = %{p | points: nest_polygon.(p)}
     %{s | mode: :record_header, emit: [polygonz | s.emit]} |> reset_unzipped
   end
 
@@ -218,8 +223,13 @@ defmodule Exshape.Shp do
     parts
   end
 
+  def native_nest_polygon(p) do
+    {:ok, r} = native_nest_polygon_impl(unflatten_parts(p))
+    r
+  end
+  defp native_nest_polygon_impl(_p), do: throw :nif_not_loaded
 
-  def nest_polygon(p) do
+  def beam_nest_polygon(p) do
     {polys, holes} = unflatten_parts(p) |> Enum.split_with(&is_clockwise?/1)
 
     Enum.reduce(holes, Enum.map(polys, fn p -> [p] end), fn hole, polys ->
@@ -754,8 +764,13 @@ defmodule Exshape.Shp do
       |> Stream.run
     ```
   """
-  def read(byte_stream) do
-    Stream.transform(byte_stream, {<<>>, %State{}}, fn bin, {buf, state} ->
+  def read(byte_stream, opts \\ []) do
+    native = Keyword.get(opts, :native, true)
+
+    state = %State{
+      nest_polygon: if(native, do: &native_nest_polygon/1, else: &beam_nest_polygon/1)
+    }
+    Stream.transform(byte_stream, {<<>>, state}, fn bin, {buf, state} ->
       case do_read(state, buf <> bin) do
         {_,   %State{mode: :done}} = s -> {:halt, s}
         {buf, %State{emit: emit} = s} -> {Enum.reverse(emit), {buf, %{s | emit: []}}}
