@@ -10,23 +10,8 @@ defmodule Exshape.Mixfile do
       package: package(),
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
-      deps: deps(),
-      compilers: [:rustler] ++ Mix.compilers,
-      rustler_crates: rustler_crates()
+      deps: deps()
     ]
-  end
-
-  defp rustler_crates do
-    if System.get_env("ALCHEMIST_MODE") do
-      []
-    else
-      [
-        exshape_shape: [
-          path: "native/exshape_shape",
-          mode: :release
-        ]
-      ]
-    end
   end
 
   defp description do
@@ -65,7 +50,7 @@ defmodule Exshape.Mixfile do
       {:elixir_uuid, "~> 1.2"},
       {:ex_doc, ">= 0.0.0", only: :dev},
       {:poison, "~> 3.1", only: :test},
-      {:rustler, "~> 0.21.1", sparse: "rustler_mix"},
+      {:rustler, "~> 0.22.0"},
     ]
   end
 end

@@ -1,6 +1,6 @@
 defmodule Exshape.Shp do
   require Rustler
-  use Rustler, otp_app: :exshape, crate: :exshape_shape
+  use Rustler, otp_app: :exshape, crate: :exshape_shape, mode: :release
 
   defmodule State do
     @enforce_keys [:nest_polygon]

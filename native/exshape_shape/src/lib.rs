@@ -1,21 +1,13 @@
-use rustler::{Encoder, Env, NifResult, SchedulerFlags, Term, rustler_export_nifs};
+use rustler::{self, Encoder, Env, Term};
 use itertools::{Itertools, Either};
 
 mod atoms {
+    use ::rustler;
     pub use rustler::types::atom::*;
-    rustler::rustler_atoms! {
-        atom x;
-        atom y;
-    }
+    rustler::atoms! { x, y }
 }
 
-rustler_export_nifs! {
-    "Elixir.Exshape.Shp",
-    [
-        ("native_nest_polygon_impl", 1, nest_polygon, SchedulerFlags::DirtyCpu)
-    ],
-    None
-}
+rustler::init!("Elixir.Exshape.Shp", [native_nest_polygon_impl]);
 
 mod point;
 mod lineseg;
@@ -26,9 +18,15 @@ use ring::Ring;
 use poly::Poly;
 use point::Point;
 
-fn nest_polygon<'a>(env: Env<'a>, args: &[Term<'a>]) -> NifResult<Term<'a>> {
-    let rings = args[0].decode::<Vec<Ring<'a>>>()?;
+struct Yes<T>(T);
+impl <T: Encoder> Encoder for Yes<T> {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        (atoms::ok(), &self.0).encode(env)
+    }
+}
 
+#[rustler::nif(schedule = "DirtyCpu")]
+fn native_nest_polygon_impl<'a>(rings: Vec<Ring<'a>>) -> Yes<Vec<Poly<'a>>> {
     let (mut polys, holes) = rings.into_iter().partition_map(|ring| {
         if ring.is_clockwise() {
             Either::Left(ring.into())
@@ -38,7 +36,7 @@ fn nest_polygon<'a>(env: Env<'a>, args: &[Term<'a>]) -> NifResult<Term<'a>> {
     });
     nest_holes(&mut polys, holes);
 
-    Ok((atoms::ok(), polys).encode(env))
+    Yes(polys)
 }
 
 fn nest_holes<'a>(polys: &mut Vec<Poly<'a>>, holes: Vec<Ring<'a>>) {
