@@ -84,14 +84,17 @@ defmodule Exshape do
 
   @spec from_filesystem(Filesystem.t) :: [layer]
   def from_filesystem(fs) do
-    fs.list.()
+    filenames = fs.list.()
     |> Enum.filter(&keep_file?/1)
     |> Enum.map(fn {:zip_file, filename, _, _, _, _} -> filename end)
+
+    filenames
     |> Enum.group_by(&Path.rootname/1)
     |> Enum.flat_map(fn {root, components} ->
       prj = Enum.find(components, fn c -> extension_equals(c, ".prj") end)
       shp = Enum.find(components, fn c -> extension_equals(c, ".shp") end)
       dbf = Enum.find(components, fn c -> extension_equals(c, ".dbf") end)
+      prj = fallback_to_only_prj(prj, filenames)
 
       if !is_nil(shp) && !is_nil(dbf) do
         [{
@@ -116,6 +119,18 @@ defmodule Exshape do
       {Path.basename(root), prj_contents, stream}
     end)
   end
+
+  # shapefile spec unclear about .prj file naming-- in the wild some files do not have matching names
+  # so if there's only one present, assume that's the one they want
+  defp fallback_to_only_prj(nil, filenames) do
+    case Enum.filter(filenames, fn f -> extension_equals(f, ".prj") end) do
+      [only_prj] -> only_prj
+      _ -> nil
+    end
+  end
+  defp fallback_to_only_prj(found_prj, _), do: found_prj
+
+
 
   defp extension_equals(path, wanted_ext) do
     case Path.extname(path) do
