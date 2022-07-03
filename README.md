@@ -9,7 +9,7 @@ Parse ESRI Shapefiles
 Add
 
 ```elixir
-{:exshape, "~> 2.1.2"}
+{:exshape, "~> 2.2"}
 ```
 
 to `mix.exs` deps
