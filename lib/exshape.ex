@@ -43,7 +43,7 @@ defmodule Exshape do
     Returns a list of all the layers, where each layer is a tuple of layer name,
     projection, and the stream of features
 
-    By default this unzips to `/tmp/exshape_some_uuid`. Make sure
+    By default this unzips to `/tmp/exshape_some_random_string`. Make sure
     to clean up when you're done consuming the stream. Pass the `:working_dir`
     option to change this destination.
 
@@ -64,7 +64,7 @@ defmodule Exshape do
   @spec from_zip(String.t) :: [layer]
   def from_zip(path, opts \\ []) do
 
-    cwd = Keyword.get(opts, :working_dir, '/tmp/exshape_#{UUID.uuid4}')
+    cwd = Keyword.get(opts, :working_dir, '/tmp/exshape_#{random_string()}')
     size = Keyword.get(opts, :read_size, 1024 * 1024)
 
     with {:ok, files} <- :zip.table(String.to_charlist(path)) do
@@ -137,6 +137,10 @@ defmodule Exshape do
       nil -> false
       ext -> String.downcase(ext) == wanted_ext
     end
+  end
+
+  def random_string do
+    32 |> :crypto.strong_rand_bytes() |> Base.url_encode64()
   end
 
 end
